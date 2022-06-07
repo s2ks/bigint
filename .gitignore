@@ -1,0 +1,5 @@
+*.o
+*.out
+.*
+!.gitignore
+/bigint_test
