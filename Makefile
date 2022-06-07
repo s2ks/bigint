@@ -1,6 +1,8 @@
 CC=gcc
 
-SRC 	:= src/bigint.c
+SRC 	:= 			\
+	   src/bigint.c 	\
+	   src/bigint_util.c
 
 OBJS 	:= $(SRC:.c=.o)
 
