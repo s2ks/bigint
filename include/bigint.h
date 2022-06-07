@@ -34,17 +34,18 @@
  * pointed to by BPTR. */
 #define BIGINT_CAP(BPTR) ((BPTR)->size / sizeof(BIGINT_BUFFER))
 
-/* NOTE: the base of BIGINT is tied to the size of the BIGINT_DIGIT
- * datatype, each entry in a BIGINT_DIGIT array is treated as a 'digit'
- * with a base of the number of unique patterns the datatype can represent.
- *
- * For a uint8_t this would be 2^8 = 256 */
+
+typedef uint8_t BIGINT;
+typedef int BIGINT_INFO;
+
+/* TODO define status codes for BIGIN_INFO */
+
 
 #if 1
-typedef uint8_t 	BIGINT_WORD;
-typedef BIGINT_WORD 	BIGINT_DIGIT;
-typedef BIGINT_DIGIT 	BIGINT_BUFFER; /* BIGINT_BUFFER serves as syntactic sugar */
-typedef uint16_t 	BIGINT_DWORD;
+//typedef uint8_t 	BIGINT_WORD;
+//typedef BIGINT_WORD 	BIGINT_DIGIT;
+//typedef BIGINT_DIGIT 	BIGINT_BUFFER; [> BIGINT_BUFFER serves as syntactic sugar <]
+//typedef uint16_t 	BIGINT_DWORD;
 
 #define BIGINT_DIGIT_MASK 	0xff
 #define BIGINT_WORD_MASK 	0xff
@@ -77,17 +78,21 @@ typedef BIGINT_DIGIT BIGINT_BUFFER;
  * Consider using something similar to a dp table. This isn't limited to
  * just carrying, we can also apply this to other parts of common operations
  * we have to do to compute BIGINT values. */
-typedef struct {
-	BIGINT_DIGIT 	*buf; 	/* A BIGINT is an array of BIGINT_DIGITs */
-	size_t 		size; 	/* The size of buf in bytes */
 
-	uint32_t 	flag; 	/* Bit flags specifying the state of BIGINT */
+/* TODO usage should be
+ * BIGINT b[n] where n is the size of the integer in bytes internally we can convert it
+ * to an array of larger integer if alignment allows it. */
+//typedef struct {
+	//BIGINT_DIGIT 	*buf; 	[> A BIGINT is an array of BIGINT_DIGITs <]
+	//size_t 		size; 	[> The size of buf in bytes <]
 
-	/*size_t 	digits;*/ /* TODO use this to keep track of the number of
-				   * (active) digits */
+	//uint32_t 	flag; 	[> Bit flags specifying the state of BIGINT <]
 
-/* 	<some_type> 	*carry_table; TODO */
-} BIGINT;
+	//[>size_t 	digits;<] /* TODO use this to keep track of the number of
+				   //* (active) digits */
+
+//[> 	<some_type> 	*carry_table; TODO <]
+//} BIGINT;
 
 /* Set (copy) src to dest */
 BIGINT *bigint_set(BIGINT *dest, const BIGINT *src);
