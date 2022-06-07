@@ -1,4 +1,4 @@
-# bigint **WORK IN PROGRESS**
+# bigint (**WORK IN PROGRESS**)
 
 A bigint implementation in c (((**SUPER EXPERIMENTAL**)))
 
@@ -22,8 +22,8 @@ bigint_seti(b, 0xffff, sizeof(b));
 
 BIGINT res[64];
 
-/* Add a and b together and store the result in res. Note that all 3 BIGINTs in an operation need to be
-of the same size */
+/* Add a and b together and store the result in res. Note that all 3 BIGINTs in
+an operation need to be of the same size */
 bigint_add(res, a, b, sizeof(res));
 
 bigint_mul(res, a, b, sizeof(res));
