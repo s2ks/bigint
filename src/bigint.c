@@ -4,10 +4,10 @@
 #include <limits.h>
 #include <assert.h>
 
-#define __DEBUG_OUT stdout
-
 #include "bigint.h"
-#include "util.h"
+/*#include "util.h"*/
+
+#include <stdio.h>
 
 /* XXX: document, document, document...
  * Seriously, its better to have too many comments
@@ -18,6 +18,9 @@
  * the obvious a thousand times. */
 
 /* TODO int to bigint and bigint to int conversion helpers */
+
+size_t bigint_digits(const BIGINT *, const size_t);
+BIGINT_INFO bigint_carry(const BIGINT *, unsigned, size_t, const size_t);
 
 enum {
 	ZERO_VAL,
@@ -43,21 +46,6 @@ void _bigint_dbgprint(BIGINT *a, size_t size) {
 	fprintf(__DEBUG_OUT, "\n");
 }
 
-static inline size_t bigint_digits(const BIGINT *big) {
-	if(big == NULL) {
-		return 0;
-	}
-
-	const size_t cap = BIGINT_CAP(big);
-
-	for(size_t i = cap; i > 0; i--) {
-		if(big->buf[i - 1] != 0) {
-			return i;
-		}
-	}
-
-	return 0;
-}
 
 /* TODO return type? */
 static inline void _bigint_buf_seti(BIGINT_BUFFER *dest, size_t size, uintmax_t val) {
@@ -72,6 +60,7 @@ static inline void _bigint_buf_seti(BIGINT_BUFFER *dest, size_t size, uintmax_t 
 #endif
 
 
+#if 0
 BIGINT *bigint_add(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
 	const int digits = bigint_digits(b);
 
@@ -126,6 +115,7 @@ BIGINT *bigint_sub(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
 
 	return dest;
 }
+#endif
 
 /* BIGINT multiplication: multiply a by b, and store
  * the result in dest.
@@ -165,17 +155,10 @@ BIGINT *bigint_sub(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
  * 	0b11 + 0b11 * 0b11 + 0b11 	= 0b1111
  */
 
-BIGINT *bigint_mul(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
-	const size_t dest_cap = BIGINT_CAP(dest);
+BIGINT_INFO bigint_mul(BIGINT *a, const BIGINT *b, const size_t size) {
+	BIGINT_INFO info = 0;
 
-	/* We create a temporary storage space for the result because
-	 * we could have dest == a || dest == b */
-	BIGINT_BUFFER tmp_buf[dest_cap];
-	BIGINT_BUFFER *org_buf = dest->buf;
-
-	memset(tmp_buf, 0, sizeof(tmp_buf));
-
-	dest->buf = tmp_buf;
+	const size_t digits[] = {bigint_digits(a, size), bigint_digits(b, size)};
 
 	/* Multiply (x * BIGINT_BASE^p) by (y * BIGINT_BASE^q) ->
 	 * (x * y) * (BIGINT_BASE^(p+q))
@@ -187,229 +170,41 @@ BIGINT *bigint_mul(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
 	 *
 	 * carry the product to position pow */
 
-	for(size_t p = 0; p < BIGINT_CAP(a); p++) {
-		for(size_t q = 0; q < BIGINT_CAP(b); q++) {
-			BIGINT_WORD x, y;
+	for(size_t p = digits[0]; p > 0; p--) {
+		const BIGINT_DIGIT digit = a[p - 1];
+		for(size_t q = digits[1]; q > 0; q--) {
+			int x, y;
 
-			x =  a->buf[p];
-			y =  b->buf[q];
+			x =  a[p - 1];
+			y =  b[q - 1];
 
-			bigint_carry(dest, q + p, x * y);
+			info |= bigint_carry(a, x * y, p + q - 2, size);
 		}
+		a[p - 1] -= digit;
 	}
-	memcpy(org_buf, tmp_buf, sizeof(tmp_buf));
 
-	dest->buf = org_buf;
-
-	return dest;
+	return info;
 }
 
-/* FIXME what if we multiply by a negative value? */
-BIGINT *bigint_muli(BIGINT *dest, const BIGINT *a, const int n) {
-	const size_t dest_cap = BIGINT_CAP(dest);
-	const size_t digits = bigint_digits(a);
+BIGINT_INFO bigint_muli(BIGINT *a, const int b, const size_t size) {
+	BIGINT_INFO info = 0;
+	const size_t digits = bigint_digits(a, size);
 
-	BIGINT_BUFFER *org_buf = dest->buf;
-	BIGINT_BUFFER dtmp_buf[dest_cap];
-		
+	for(size_t i = digits; i > 0; i--) {
+		const BIGINT_DIGIT digit = a[i - 1];
+		for(size_t j = sizeof(b); j > 0; j--) {
+			const int prod = digit * ((b >> ((j - 1) * BIGINT_DIGIT_WIDTH)) & BIGINT_DIGIT_MASK);
 
-	if(n < 0) {
-		_bigint_buf_seti(nbuf, sizeof(nbuf), -n);
-	} else {
-		_bigint_buf_seti(nbuf, sizeof(nbuf), n);
+			/*printf("%d\n", prod);*/
+			if(prod) {
+				info |= bigint_carry(a, prod, i + j - 2, size);
+			}
+		}
+		a[i - 1] -= digit;
 	}
 
-
-
-	/* Consider what happens if 'dest' == 'a',
-	 * we can't clear 'dest' because we might be
-	 * clearing 'a'. So we have to allocate
-	 * a temporary storage space. */
-	BIGINT_BUFFER store_buf[BIGINT_CAP(dest)];
-	BIGINT store = BIGINT_ZERO_INIT(store_buf, dest->size);
-
-	for(size_t i = 0; i < digits; i++) {
-		uintmax_t prod;
-
-		prod = a->buf[i] * n;
-
-		bigint_carry(&store, i, prod);
-	}
-
-	/* Copy the contents of 'store' to 'dest' */
-	bigint_set(dest, &store);
-
-	return dest;
+	return info;
 }
-
-/* Booth's multiplication algorithm (attempt)
- * https://en.wikipedia.org/wiki/Booth%27s_multiplication_algorithm */
-
-/*TODO*/
-
-#if 0
-static BIGINT *bigint_booth_mul(BIGINT *dest, const BIGINT *m, const BIGINT *r) {
-	const size_t x = BIGINT_CAP(m);
-	const size_t y = BIGINT_CAP(r);
-	const size_t len = x + y + 1;
-
-	BIGINT_BUFFER buf1[len];
-	BIGINT_BUFFER buf2[len];
-	BIGINT_BUFFER buf3[len];
-
-	BIGINT A = BIGINT_ASSIGN(buf1, sizeof(buf1));
-	BIGINT S = BIGINT_ASSIGN(buf2, sizeof(buf2));
-	BIGINT P = BIGINT_ASSIGN(buf3, sizeof(buf3));
-
-
-	for(size_t i = 0; i < len; i++) {
-		/* Fill the x most significant bits with m, the rest with 0 */
-		A.buf[i] = i >= len - x ? m->buf[i - (len - x)] : 0;
-		S.buf[i] = i >= len - x ? ~(m->buf[i - (len - x)]) : 0;
-		P.buf[i] = i < BIGINT_CAP(r) ? r->buf[i] : 0;
-	}
-
-	bigint_carry(S, len - x, 1);
-}
-#endif
-
-/* Karatsuba algorithm (attempt)
- *
- * reference: https://en.wikipedia.org/wiki/Karatsuba_algorithm */
-
-/* FIXME with really large numbers we might get a stack overflow, unfortunately
- * we *have* to use recursion because we essentially have to walk a tree.
- *
- * An alternative would be to use a stack data structure and 'recurse' that
- * way in a loop. This data structure would be allocated on the heap so
- * we need to determine the tree depth before allocating.
- *
- * As it stands, this implementation becomes completely unusable
- * for sufficiently large numbers long before the stack even gets
- * close to overflowing. (probably?) */
-
-/* TODO REMOVE ME */
-#if 0
-static BIGINT *bigint_mul_recurse(BIGINT *dest, const BIGINT *a,
-		const BIGINT *b, const size_t alen, const size_t blen)
-{
-	if(alen == 0 || blen == 0) {
-		bigint_set(dest, bigint_const[ZERO_VAL]);
-		return dest;
-	}
-
-	assert(alen > 0);
-	assert(blen > 0);
-
-	if(alen == 1 || blen == 1) {
-		return bigint_long_mul(dest, a, b);
-	}
-
-	const size_t n = MIN(alen, blen) / 2;
-	const size_t l = MAX(alen, blen) - n;
-
-	assert(n > 0);
-
-	const BIGINT a_hi = BIGINT_ASSIGN_UNSIGNED(&(a->buf[n]), BIGINT_LENTOSIZE(alen - n));
-	const BIGINT a_lo = BIGINT_ASSIGN_UNSIGNED(&(a->buf[0]), BIGINT_LENTOSIZE(n));
-	const BIGINT b_hi = BIGINT_ASSIGN_UNSIGNED(&(b->buf[n]), BIGINT_LENTOSIZE(blen - n));
-	const BIGINT b_lo = BIGINT_ASSIGN_UNSIGNED(&(b->buf[0]), BIGINT_LENTOSIZE(n));
-
-	assert(l >= n);
-	BIGINT_BUFFER t1buf[l + l];
-	BIGINT_BUFFER t2buf[l + l];
-	BIGINT_BUFFER combprod_buf[(l + l) * 2];
-
-	BIGINT t1 = BIGINT_ASSIGN_UNSIGNED(t1buf, sizeof(t1buf));
-	BIGINT t2 = BIGINT_ASSIGN_UNSIGNED(t2buf, sizeof(t2buf));
-	BIGINT combprod = BIGINT_ASSIGN_UNSIGNED(combprod_buf, sizeof(combprod_buf));
-
-	/* lo is in range of [0..n]
-	 * hi is in range of [n..digits] */
-
-	bigint_add(&t1, &a_hi, &a_lo); /* is at most (alen - n + 1) digits long */
-	bigint_add(&t2, &b_hi, &b_lo); /* is at most (blen - n + 1) digits long */
-
-	/* asum := a_hi + a_lo
-	 * bsum := b_hi + b_lo
-	 * combprod := asum * bsum */
-
-	/* is at most (alen - n + 1) + (blen - n + 1) digits long */
-	bigint_mul_recurse(&combprod, &t1, &t2,
-			bigint_digits(&t1), bigint_digits(&t2));
-
-	/* FIXME t1 (loprod) most significant digit is off by one */
-
-	/* is at most n + n digits long */
-	bigint_mul_recurse(&t1, &a_lo, &b_lo, n, n);
-
-	/* is at most (alen - n) + (blen - n) digits long */
-	bigint_mul_recurse(&t2, &a_hi, &b_hi, alen - n, blen - n);
-
-	/* loprod := a_lo * b_lo */
-	/* hiprod := a_hi * b_hi */
-
-	bigint_set(dest, &t2);
-	bigint_dshl(dest, n);
-
-	bigint_sub(&combprod, &combprod, &t2);
-	bigint_sub(&combprod, &combprod, &t1);
-
-	/* midprod := combprod - hiprod - loprod =  */
-
-	bigint_add(dest, dest, &combprod);
-	bigint_dshl(dest, n);
-
-	bigint_add(dest, dest, &t1);
-
-	/* a*b = (hiprod * base^(n*2)) + (midprod * base^n) + loprod
-	 * We perform this operation in the order of:
-	 * ((((hiprod) * base^n) + midprod) * base^n) + loprod */
-
-	return dest;
-}
-
-BIGINT *bigint_mul(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
-	const size_t digits_a = bigint_digits(a);
-	const size_t digits_b = bigint_digits(b);
-
-	/* FIXME if either a or b is zero (has zero digits) the
-	 * result is zero. */
-	assert(digits_a > 0);
-	assert(digits_b > 0);
-
-	bigint_mul_recurse(dest, a, b, digits_a, digits_b);
-
-	return dest;
-}
-#endif
-
-/* TODO implement
- *
- * CONCLUSION:
- * 	I don't think it's possible to implement this
- * 	iteratively without using some kind of stack structure.
- *
- * 	Essentially we have to walk a tree, for which we need
- * 	to use recursion.
- *
- * 	The recursive implementation of this function
- * 	can be optimised using tail-call recursion, so we can
- * 	allocate all our memory once, and then walk the tree using
- * 	recursion.
- *
- * 	I don't see a reason for using a stack data structure,
- * 	I doubt it would be any faster than using recursion.
- * 	Unless we start getting stack overflows, using recursion is
- * 	probably fine.
- *
- * 	Okay so tail-call recursion is basically a different way of
- * 	writing a loop. Which means this can't actually be
- * 	optimised using tail-call recursion.
- *
- * 	TODO: add a stack data structure to my util library?
- * 	(oh! And what about a self-balancing binary search tree?)
- * */
 
 /* Division: how many times does the divisor fit in the dividend?
  *
@@ -421,7 +216,8 @@ BIGINT *bigint_mul(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
  *
  * Algorithm shamelessly stolen from:
  * 	https://en.wikipedia.org/wiki/Long_division#Algorithm_for_arbitrary_base */
-
+#if 0
+/* FIXME new usage. Alternatively: rewrite using long division */
 BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor,
 		BIGINT *rem)
 {
@@ -625,6 +421,8 @@ BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor,
 	return dest;
 }
 
+
+/* FIXME new usage */
 BIGINT *bigint_divi(BIGINT *dest, const BIGINT *dividend, const int divisor, int *rem) {
 	const size_t buflen = MAX(sizeof(divisor) / sizeof(BIGINT_BUFFER), 1);
 
@@ -648,165 +446,49 @@ BIGINT *bigint_divi(BIGINT *dest, const BIGINT *dividend, const int divisor, int
 
 	return dest;
 }
+#endif
 
 /* Exponentiation by squaring
  *
  * The reason this works:
  * 	https://cp-algorithms.com/algebra/binary-exp.html */
 /* TODO test me */
-BIGINT *bigint_pow(BIGINT *dest, const BIGINT *a, intmax_t p) {
+BIGINT_INFO bigint_pow(BIGINT *a, int p, const size_t size) {
+	BIGINT_INFO info = 0;
 	if(p < 0) {
-		bigint_seti(dest, 0);
-		return dest;
+		memset(a, 0, size);
+		return info;
 	} else if(p == 0) {
-		bigint_seti(dest, 1);
-		return dest;
+		memset(a, 0, size);
+		a[0] = 1;
+		return info;
 	} else if(p == 1) {
-		bigint_set(dest, a);
-		return dest;
+		/* a = a */
+		return info;
 	}
 
-	BIGINT_BUFFER tbuf[BIGINT_CAP(a)];
-	BIGINT temp = BIGINT_ZERO_INIT(tbuf, sizeof(tbuf));
+	BIGINT b[size];
 
-	bigint_seti(dest, 1);
-	bigint_set(&temp, a);
+	memcpy(b, a, size);
+
+	memset(a, 0, size);
+	a[0] = 1;
 
 	while(p > 0) {
 		if(p & 1) {
 			/* p is odd aka lsb is set so we
-			 * need to set dest to the product
-			 * of dest and the squared result of the
-			 * previous iteration */
-			bigint_mul(dest, dest, &temp);
+			 * need to set 'a' to the product
+			 * of 'a' and the squared result of the
+			 * previous iteration ('b') */
+			info |= bigint_mul(a, b, size);
 		}
 
 		/* Square */
-		bigint_mul(&temp, &temp, &temp);
+		info |= bigint_mul(b, b, size);
 
 		/* p = p / 2 */
 		p >>= 1;
 	}
 
-	return dest;
-}
-
-#if 0
-
-/* TODO: support hexadecimal */
-int _bigint_stob(BIGINT_BUFFER *buf, size_t size, const char *str) {
-	if(str) {
-		return _bigint_stob_base10(buf, size, str);
-	} else {
-		return 0;
-	}
-}
-
-#endif
-
-#if 0
-/* Convert a string representing a base 10 number to BIGINT format */
-BIGINT *bigint_strtobig_base10(BIGINT *dest, const char *str) {
-	const size_t slen = strlen(str);
-
-	BIGINT_BUFFER *pbuf = malloc(dest->size); ABORT(pbuf == NULL);
-	BIGINT p = {.buf = pbuf, .size = dest->size};
-
-	for(size_t i = slen, q = 0; i > 0; i--, q++) {
-		const int digit = str[i - 1] - '0';
-
-		if(digit > 9 || digit < 0) {
-			dest->flag |= BIGINT_NAN;
-			return dest;
-		}
-
-		memset(p.buf, 0, p.size);
-
-		bigint_exp10(&p, q); /* TODO implement exp10 */
-		bigint_muli(&p, &p, digit);
-
-		bigint_add(dest, dest, &p);
-	}
-
-	return dest;
-}
-#endif
-/* Call bigint_tostr with size zero and dest NULL to get the size
- * of the computed string
- *
- * char *dest_buf[bigint_tostr(&my_bigint, 0, NULL)];
- * bigint_tostr(&my_bigint, sizeof(dest_buf), dest_buf); */
-
-/* TODO There are a lot of performance improvements that can be made
- * here */
-size_t bigint_tostr(const BIGINT *a, size_t dest_size, char *dest) {
-	size_t digitc = bigint_digits(a);
-	size_t unwritten = 0;
-
-	BIGINT_BUFFER store_buf[BIGINT_CAP(a)];
-	BIGINT store = BIGINT_ASSIGN(store_buf, sizeof(store_buf));
-
-	const int radix = 1e9;
-
-	memcpy(store_buf, a->buf, sizeof(store_buf));
-
-	/* Reserve a space for the null terminator */
-	if(dest && dest_size > 0) {
-		dest[dest_size - 1] = '\0';
-	} else {
-		unwritten++;
-	}
-
-	size_t i = dest_size > 0 ? dest_size - 1 : 0;
-
-	/* FIXME This is super slow for very large numbers.
-	 * Find a way to compute the number of digits that would be involved
-	 * if represented as a base 10 number.
-	 *
-	 * We could also replace the comparison to zero, with
-	 * a digit count, where we remember the top of the last digit
-	 * from the last iteration */
-	while(digitc > 0) {
-		int rem;
-
-		/* FIXME also define a BIGINT constant for
-		 * radix so we don't have to do conversion on
-		 * each iteration */
-		bigint_divi(&store, &store, radix, &rem);
-
-		/* FIXME leading zeros */
-		for(int j = radix / 10; j > 0; j /= 10) {
-			if(dest && i > 0) {
-				dest[--i] = (rem % 10) + '0';
-			} else {
-				unwritten++;
-			}
-
-			rem /= 10;
-		}
-
-		while(store.buf[digitc - 1] == 0 && digitc > 0) {
-			digitc--;
-		}
-	}
-
-	/* We write the characters from back-to-front in the buffer,
-	 * this is not a problem if the buffer is exactly the
-	 * same size as the number of characters to be written.
-	 * But if the destination buffer is larger than the number
-	 * of characters we write we need to shuffle the characters
-	 * to the front of the buffer.
-	 *
-	 * XXXXXX1234 -> 1234XXXXXX (of course we include the null terminator
-	 * in this too) */
-
-	/* if i == 0 we don't need to go through this song-and-dance */
-	if(dest_size > 0 && dest && i > 0) {
-		const size_t len = dest_size - i;
-		for(size_t x = 0; x < len; x++, i++) {
-			dest[x] = dest[i];
-		}
-	}
-
-	return unwritten;
+	return info;
 }

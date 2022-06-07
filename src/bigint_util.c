@@ -1,26 +1,50 @@
 #include <ctype.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define __DEBUG_OUT stdout
 
 #include "bigint.h"
+
+
+void _bigint_dbgprint(BIGINT *a, size_t size) {
+	const int cap = size;
+
+	for(int i = 0; i < cap; i++) {
+		fprintf(__DEBUG_OUT, "%02x ", a[i]);
+	}
+	fprintf(__DEBUG_OUT, "\n");
+}
+
+size_t bigint_digits(const BIGINT *a, const size_t size) {
+	if(a == NULL) {
+		return 0;
+	}
+
+	for(size_t i = size; i > 0; i--) {
+		if(a[i - 1] != 0) {
+			return i;
+		}
+	}
+
+	return 0;
+}
 
 /* Ripple carry (?)
  *
  * Carry the value of 'n' to position 'pos' in BIGINT 'a'. */
 
 /* TODO Optimise this */
-/* FIXME new usage */
-static uint32_t bigint_carry(BIGINT *a, size_t pos, uintmax_t carry, size_t size) {
-	const size_t 	cap = size;
-	uintmax_t 	accum;
-	BIGINT_INFO 	info;
-
-	memset(&info, 0, sizeof(info));
+int bigint_carry(BIGINT *a, unsigned carry, size_t pos, const size_t size) {
+	int 	accum;
+	BIGINT_INFO 	info = 0;
 
 	do {
 		/* Index out of range -> Overflow */
-		if(pos >= cap) {
-			info.flag |= BIGINT_OVF;
-			return BIGINT_OVF;
+		if(pos >= size) {
+			info |= BIGINT_OVF;
+			return info;
 		}
 
 		accum = a[pos] + carry;
@@ -34,9 +58,11 @@ static uint32_t bigint_carry(BIGINT *a, size_t pos, uintmax_t carry, size_t size
 		a[pos++] = accum;
 	} while(carry > 0);
 
-	return 0;
+	return info;
 }
 
+
+#if 0
 /* Bit shifts */
 
 /* Shift left */
@@ -194,6 +220,7 @@ int bigint_cmp(const BIGINT *const a, const BIGINT *const b) {
 
 	return cmp;
 }
+#endif
 
 #if 0
 /* FIXME what if we set a negative? Make sure it actually does
@@ -250,9 +277,28 @@ BIGINT *bigint_set(BIGINT *dest, const BIGINT *src) {
 }
 #endif
 
+#if 0
+BIGINT_INFO bigint_seti(BIGINT *dest, int n) {
+
+	/* Initialise to zero */
+	memset(dest->buf, 0, dest->size);
+
+	/* if 'n' is negative we carry the absolute value of 'n'
+	 * and compute the complement. */
+	if(n < 0) {
+		bigint_carry(dest, 0, (unsigned) (-n));
+		bigint_complement(dest, dest);
+	} else {
+		bigint_carry(dest, 0, (unsigned) n);
+	}
+
+	return dest;
+}
+#endif
+
 /* 'val' should be a string representing a base 10 number, mathematical operators (like +, -, *, /, ^) are not allowed.
  * However the number can be written in scientific notation, e.g. 25e100 for 25 * 10^100 */
-BIGINT_INFO bigint_set(const BIGINT *dest, const char *const val, const size_t size) {
+BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 	BIGINT_INFO info = 0;
 
 	memset(dest, 0, size);
@@ -260,14 +306,18 @@ BIGINT_INFO bigint_set(const BIGINT *dest, const char *const val, const size_t s
 	while(*val != '\0' && *val != 'e') {
 		if(isdigit(*val) == 0) {
 			/* TODO Invalid character set a flag and handle */
-			/*info |= BIGINT_NAN;*/
+			info |= BIGINT_NAN;
 			break;
 		}
 
-		char digit = *val - '0';
+		info |= bigint_muli(dest, 10, size);
 
-		dest[0] = digit;
+		BIGINT_DIGIT digit = (BIGINT_DIGIT) (*val - '0');
 
+		printf("digit: %d\n", digit);
+
+		info |= bigint_carry(dest, digit, 0, size);
+		_bigint_dbgprint(dest, size);
 		val++;
 	}
 
@@ -275,6 +325,100 @@ BIGINT_INFO bigint_set(const BIGINT *dest, const char *const val, const size_t s
 		/* Raise 10 to the power of what comes after 'e'. The power should be able to be
 		 * converted to a regular integer, this should cover a large enough range of numbers we
 		 * could ever want to use */
+		BIGINT b[size];
+		memset(b, 0, size);
+
+		b[0] = 10;
+
+		info |= bigint_pow(b, atoi(++val), sizeof(b));
+		info |= bigint_mul(dest, b, size);
 	}
-	return;
+
+	return info;
 }
+
+void bigint_print(const BIGINT *a, const size_t size) {
+	
+}
+
+#if 0
+/* Call bigint_tostr with size zero and dest NULL to get the size
+ * of the computed string
+ *
+ * char *dest_buf[bigint_tostr(&my_bigint, 0, NULL)];
+ * bigint_tostr(&my_bigint, sizeof(dest_buf), dest_buf); */
+
+/* TODO There are a lot of performance improvements that can be made
+ * here */
+size_t bigint_tostr(const BIGINT *a, size_t dest_size, char *dest) {
+	size_t digitc = bigint_digits(a);
+	size_t unwritten = 0;
+
+	BIGINT_BUFFER store_buf[BIGINT_CAP(a)];
+	BIGINT store = BIGINT_ASSIGN(store_buf, sizeof(store_buf));
+
+	const int radix = 1e9;
+
+	memcpy(store_buf, a->buf, sizeof(store_buf));
+
+	/* Reserve a space for the null terminator */
+	if(dest && dest_size > 0) {
+		dest[dest_size - 1] = '\0';
+	} else {
+		unwritten++;
+	}
+
+	size_t i = dest_size > 0 ? dest_size - 1 : 0;
+
+	/* FIXME This is super slow for very large numbers.
+	 * Find a way to compute the number of digits that would be involved
+	 * if represented as a base 10 number.
+	 *
+	 * We could also replace the comparison to zero, with
+	 * a digit count, where we remember the top of the last digit
+	 * from the last iteration */
+	while(digitc > 0) {
+		int rem;
+
+		/* FIXME also define a BIGINT constant for
+		 * radix so we don't have to do conversion on
+		 * each iteration */
+		bigint_divi(&store, &store, radix, &rem);
+
+		/* FIXME leading zeros */
+		for(int j = radix / 10; j > 0; j /= 10) {
+			if(dest && i > 0) {
+				dest[--i] = (rem % 10) + '0';
+			} else {
+				unwritten++;
+			}
+
+			rem /= 10;
+		}
+
+		while(store.buf[digitc - 1] == 0 && digitc > 0) {
+			digitc--;
+		}
+	}
+
+	/* We write the characters from back-to-front in the buffer,
+	 * this is not a problem if the buffer is exactly the
+	 * same size as the number of characters to be written.
+	 * But if the destination buffer is larger than the number
+	 * of characters we write we need to shuffle the characters
+	 * to the front of the buffer.
+	 *
+	 * XXXXXX1234 -> 1234XXXXXX (of course we include the null terminator
+	 * in this too) */
+
+	/* if i == 0 we don't need to go through this song-and-dance */
+	if(dest_size > 0 && dest && i > 0) {
+		const size_t len = dest_size - i;
+		for(size_t x = 0; x < len; x++, i++) {
+			dest[x] = dest[i];
+		}
+	}
+
+	return unwritten;
+}
+#endif
