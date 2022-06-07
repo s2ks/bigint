@@ -20,13 +20,11 @@ BIGINT b[64];
 /* set 'b' to 65535 */
 bigint_seti(b, 0xffff, sizeof(b));
 
-BIGINT res[64];
-
-/* Add a and b together and store the result in res. Note that all 3 BIGINTs in
+/* Add a and b together and store the result in a. Note that both BIGINTs in
 an operation need to be of the same size */
-bigint_add(res, a, b, sizeof(res));
+bigint_add(a, b, sizeof(a));
 
-bigint_mul(res, a, b, sizeof(res));
-bigint_div(res, a, b, sizeof(res));
+bigint_mul(a, b, sizeof(a));
+bigint_div(a, b, sizeof(a));
 
 ```
