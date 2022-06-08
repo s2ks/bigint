@@ -13,10 +13,17 @@ static const BIGINT *testres[] = {
 };
 
 void test_mul(void);
+void test_set(void);
 
 static const void (*test[])(void) = {
 	test_mul,
+	test_set,
 };
+
+void test_set(void) {
+
+}
+
 
 void test_mul(void) {
 	BIGINT a[64] = {0x10, 0xee, 0xab};
@@ -47,20 +54,26 @@ void test_mul(void) {
 int main(void) {
 
 	/* TODO this should be the usage */
-	/*BIGINT a[64];*/
-	/*bigint_set(a, "1e150", sizeof(a));*/
+	BIGINT a[64];
+	bigint_set(a, "1e150", sizeof(a));
 
-	/*bigint_print(a, sizeof(a)); [> --> prints a 1 with 150 zeros <]*/
-	/*_bigint_dbgprint(a, sizeof(a));*/
+	/*bigint_print(a, sizeof(a));*/
+	_bigint_dbgprint(a, sizeof(a));
 
+	bigint_set(a, "1000", sizeof(a));
 
-	test_mul();
-
-	BIGINT a[64] = {10};
-
-	bigint_pow(a, 20, sizeof(a));
+	bigint_divi(a, 10, NULL, sizeof(a));
 
 	_bigint_dbgprint(a, sizeof(a));
+
+
+	/*test_mul();*/
+
+	/*BIGINT a[64] = {10};*/
+
+	/*bigint_pow(a, 20, sizeof(a));*/
+
+	/*_bigint_dbgprint(a, sizeof(a));*/
 
 	return 0;
 }
