@@ -155,8 +155,18 @@ BIGINT *bigint_sub(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
  * 	0b11 + 0b11 * 0b11 + 0b11 	= 0b1111
  */
 
-BIGINT_INFO bigint_mul(BIGINT *a, const BIGINT *b, const size_t size) {
+BIGINT_INFO bigint_mul(BIGINT *a, BIGINT *b, const size_t size) {
 	BIGINT_INFO info = 0;
+	int cloned = 0;
+
+	if(a == b) {
+		/* If 'b' points to the same memory as 'a' then we can't do the operation 'in-place'
+		 * (at least as far as I know) so we make a copy. TODO what if we let cases like this
+		 * be handled by some sort of specialised square function? */
+		b = malloc(size);
+		memcpy(b, a, size);
+		cloned = 1;
+	}
 
 	const size_t digits[] = {bigint_digits(a, size), bigint_digits(b, size)};
 
@@ -171,27 +181,39 @@ BIGINT_INFO bigint_mul(BIGINT *a, const BIGINT *b, const size_t size) {
 	 * carry the product to position pow */
 
 	for(size_t p = digits[0]; p > 0; p--) {
-		const BIGINT_DIGIT digit = a[p - 1];
 		for(size_t q = digits[1]; q > 0; q--) {
 			int x, y;
 
-			x =  a[p - 1];
-			y =  b[q - 1];
+			x = a[p - 1];
+			y = b[q - 1];
 
-			info |= bigint_carry(a, x * y, p + q - 2, size);
+			int prod = x * y;
+
+			if(q == 1) {
+				a[p - 1] = 0;
+			}
+
+			info |= bigint_carry(a, prod, p + q - 2, size);
 		}
-		a[p - 1] -= digit;
+	}
+
+	if(cloned) {
+		free(b);
 	}
 
 	return info;
 }
 
+/* FIXME take a look at bigint_mul and take lessons learned from implementing that,
+ * also this is broken */
 BIGINT_INFO bigint_muli(BIGINT *a, const int b, const size_t size) {
 	BIGINT_INFO info = 0;
 	const size_t digits = bigint_digits(a, size);
 
 	for(size_t i = digits; i > 0; i--) {
 		const BIGINT_DIGIT digit = a[i - 1];
+		/* FIXME no need to split this into individual bytes, we can just multiply
+		 * each element in 'a' with the entirety of 'b' */
 		for(size_t j = sizeof(b); j > 0; j--) {
 			const int prod = digit * ((b >> ((j - 1) * BIGINT_DIGIT_WIDTH)) & BIGINT_DIGIT_MASK);
 
@@ -455,40 +477,32 @@ BIGINT *bigint_divi(BIGINT *dest, const BIGINT *dividend, const int divisor, int
 /* TODO test me */
 BIGINT_INFO bigint_pow(BIGINT *a, int p, const size_t size) {
 	BIGINT_INFO info = 0;
-	if(p < 0) {
-		memset(a, 0, size);
-		return info;
-	} else if(p == 0) {
-		memset(a, 0, size);
-		a[0] = 1;
-		return info;
-	} else if(p == 1) {
-		/* a = a */
-		return info;
-	}
 
-	BIGINT b[size];
+	BIGINT *res = a;
+	BIGINT *in = malloc(size);
 
-	memcpy(b, a, size);
+	memcpy(in, a, size);
+	memset(res, 0, size);
 
-	memset(a, 0, size);
-	a[0] = 1;
+	/* res = 1 */
+	res[0] = 1;
 
 	while(p > 0) {
 		if(p & 1) {
-			/* p is odd aka lsb is set so we
-			 * need to set 'a' to the product
-			 * of 'a' and the squared result of the
-			 * previous iteration ('b') */
-			info |= bigint_mul(a, b, size);
+			/* p is odd */
+			/* res = res * a */
+			info |= bigint_mul(res, in, size);
 		}
 
 		/* Square */
-		info |= bigint_mul(b, b, size);
+		/* a = a * a */
+		info |= bigint_mul(in, in, size);
 
 		/* p = p / 2 */
 		p >>= 1;
 	}
+
+	free(in);
 
 	return info;
 }

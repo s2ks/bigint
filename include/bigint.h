@@ -61,7 +61,7 @@ BIGINT_INFO bigint_set(BIGINT *const, const char *, const size_t);
 
 /* Multiply BIGINT 'a' by BIGINT 'b', the result is
  * stored in 'dest'. */
-BIGINT_INFO bigint_mul(BIGINT *, const BIGINT *, const size_t);
+BIGINT_INFO bigint_mul(BIGINT *, BIGINT *, const size_t);
 BIGINT_INFO bigint_muli(BIGINT *, const int, const size_t);
 
 /* Divide 'dividend' by 'divisor', store the quotient in 'dest', and the
