@@ -296,10 +296,22 @@ BIGINT_INFO bigint_seti(BIGINT *dest, int n) {
 }
 #endif
 
+/* TODO validate a string representing a number.
+ * See regex.h perhaps? */
+int bigint_validate_str(const char *str) {
+	return 1;
+}
+
 /* 'val' should be a string representing a base 10 number, mathematical operators (like +, -, *, /, ^) are not allowed.
  * However the number can be written in scientific notation, e.g. 25e100 for 25 * 10^100 */
+/* TODO support hexadecimal -> use toupper and then isxdigit.
+ * if c <= '9' then use c - '0' otherwise use c - 'A' + 10*/
 BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 	BIGINT_INFO info = 0;
+
+	if(bigint_validate_str(val) == 0) {
+		/* TODO Invalid string */
+	}
 
 	memset(dest, 0, size);
 
@@ -314,10 +326,7 @@ BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 
 		BIGINT_DIGIT digit = (BIGINT_DIGIT) (*val - '0');
 
-		printf("digit: %d\n", digit);
-
 		info |= bigint_carry(dest, digit, 0, size);
-		_bigint_dbgprint(dest, size);
 		val++;
 	}
 
@@ -325,13 +334,15 @@ BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 		/* Raise 10 to the power of what comes after 'e'. The power should be able to be
 		 * converted to a regular integer, this should cover a large enough range of numbers we
 		 * could ever want to use */
-		BIGINT b[size];
+		BIGINT *b = malloc(size);
 		memset(b, 0, size);
 
 		b[0] = 10;
 
-		info |= bigint_pow(b, atoi(++val), sizeof(b));
+		info |= bigint_pow(b, atoi(++val), size);
 		info |= bigint_mul(dest, b, size);
+
+		free(b);
 	}
 
 	return info;
