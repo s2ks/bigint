@@ -5,9 +5,8 @@
 #include <assert.h>
 
 #include "bigint.h"
-/*#include "util.h"*/
 
-#include <stdio.h>
+/*#include <stdio.h>*/
 
 /* XXX: document, document, document...
  * Seriously, its better to have too many comments
@@ -37,15 +36,6 @@ const BIGINT *bigint_const[CONST_COUNT] = {
 
 
 #if 0
-void _bigint_dbgprint(BIGINT *a, size_t size) {
-	const int cap = size;
-
-	for(int i = 0; i < cap; i++) {
-		fprintf(__DEBUG_OUT, "%02x ", a[i]);
-	}
-	fprintf(__DEBUG_OUT, "\n");
-}
-
 
 /* TODO return type? */
 static inline void _bigint_buf_seti(BIGINT_BUFFER *dest, size_t size, uintmax_t val) {
@@ -442,33 +432,70 @@ BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor,
 
 	return dest;
 }
-
-
-/* FIXME new usage */
-BIGINT *bigint_divi(BIGINT *dest, const BIGINT *dividend, const int divisor, int *rem) {
-	const size_t buflen = MAX(sizeof(divisor) / sizeof(BIGINT_BUFFER), 1);
-
-	BIGINT_BUFFER dvsr_buf[buflen];
-	BIGINT_BUFFER rem_buf[buflen];
-
-	BIGINT bdvsr 	= BIGINT_INIT(dvsr_buf, sizeof(dvsr_buf), divisor);
-	BIGINT brem 	= BIGINT_ZERO_INIT(rem_buf, sizeof(rem_buf));
-
-	bigint_div(dest, dividend, &bdvsr, &brem);
-
-	if(rem == NULL) {
-		return dest;
-	}
-
-	*rem = 0;
-	for(size_t i = buflen; i > 0; i--) {
-		*rem <<= BIGINT_DIGIT_WIDTH;
-		*rem |= brem.buf[i - 1];
-	}
-
-	return dest;
-}
 #endif
+
+
+/* Divide 'a' by 'b' and store the result in 'a' and the remainder in 'rem'
+ * TODO do we want the remainder? */
+BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *rem, const size_t size) {
+	if(b == 0) {
+		return BIGINT_DIV;
+	}
+
+	const size_t digits = bigint_digits(a, size);
+	BIGINT_INFO info = 0;
+
+	BIGINT *in = malloc(size);
+	memcpy(in, a, size);
+
+	memset(a, 0, size);
+
+	int r = 0;
+
+	/* TODO for dividing digits at i > 0 we need to multiply the
+	 * remainder by 256, divide by b and carry the result to i - j */
+
+	for(size_t i = 0; i < digits; i++) {
+		for(size_t j = 0; j < sizeof(b); j++) {
+			int x, y;
+			div_t q;
+
+			x = in[i];
+			y = (b >> (j * BIGINT_DIGIT_WIDTH)) & BIGINT_DIGIT_MASK;
+
+			if(y == 0) {
+				continue;
+			}
+
+			if(i < j) {
+				/* TODO what do we do with q.rem? */
+				r += in[i] << (j * BIGINT_DIGIT_WIDTH);
+			} else {
+				/* TODO what do we do with q.rem? */
+				q = div(x, y);
+				info |= bigint_carry(a, q.quot, i - j, size);
+
+				/* i - j - 1 < 0 */
+				if(i < j + 1) {
+					r += q.rem;
+				} else {
+					info |= bigint_carry(a, q.rem, i - j - 1, size);
+				}
+			}
+		}
+	}
+
+	/* TODO while the remainder is larger or equal to b carry a 1 to position
+	 * 0, aka divide by b and carry the quotient. */
+
+	if(rem) {
+		*rem = r;
+	}
+
+	free(in);
+
+	return info;
+}
 
 /* Exponentiation by squaring
  *
