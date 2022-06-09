@@ -48,9 +48,13 @@ typedef BIGINT_DIGIT BIGINT_BUFFER;
 #define BIGINT_ISNEGATIVE(BPTR) ((BPTR)->buf[BIGINT_CAP(BPTR) - 1] & BIGINT_SIGN_BIT)
 #define BIGINT_ISUNSIGNED(BPTR) ((BPTR)->flag & BIGINT_UNSIGNED)
 
-/* Set (copy) src to dest */
-BIGINT_INFO bigint_set(BIGINT *const, const char *, const size_t);
+/* Set a BIGINT of length 'size' to the value represented by the string 'val' */
+BIGINT_INFO bigint_set(BIGINT *const a, const char *val, const size_t size);
 //BIGINT *bigint_seti(BIGINT *dest, int n);
+
+/* Shift BIGINT 'a' of length 'size', to the left by a whole digit's width 'n' times */
+BIGINT_INFO bigint_dshl(BIGINT *const a, const size_t n, const size_t size);
+
 
 /* Add BIGINT 'b' to BIGINT 'a', store the result in 'dest' */
 //BIGINT *bigint_add(BIGINT *dest, const BIGINT *a, const BIGINT *b);

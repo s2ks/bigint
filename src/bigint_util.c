@@ -113,15 +113,17 @@ BIGINT *bigint_itob(BIGINT *dest, int n) {
 
 	return dest;
 }
+#endif
 
 /* Digit shift, (or dash?) shift by 'n' number
  * of BIGINT_DIGITs */
 
 /* Digit shift left
  * Shift 't' by 'n' BIGINT_DIGITs to the left */
-BIGINT *bigint_dshl(BIGINT *t, size_t n) {
-	const size_t len = bigint_digits(t);
-	const size_t cap = BIGINT_CAP(t);
+BIGINT_INFO bigint_dshl(BIGINT *a, const size_t n, const size_t size) {
+	const size_t len = bigint_digits(a, size);
+	const size_t cap = size;
+	BIGINT_INFO info = 0;
 
 	for(size_t i = len; i > 0; i--) {
 		/* Carry the current digit to position i + n
@@ -130,16 +132,16 @@ BIGINT *bigint_dshl(BIGINT *t, size_t n) {
 		 * if we would be writing out of bounds we set
 		 * the overflow flag. */
 		if((i + n - 1) < cap) {
-			t->buf[i + n - 1] = t->buf[i - 1];
+			a[i + n - 1] = a[i - 1];
 		} else {
-			t->flag |= BIGINT_OVF;
+			info |= BIGINT_OVF;
 		}
-		t->buf[i - 1] = 0;
+		a[i - 1] = 0;
 	}
-
-	return t;
+	return info;
 }
 
+#if 0
 /* Digit shift right by 'n' BIGINT_DIGITs */
 BIGINT *digit_dshr(BIGINT *t, size_t n) {
 	const size_t len = bigint_digits(t);

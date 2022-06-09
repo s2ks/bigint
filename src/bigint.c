@@ -36,21 +36,6 @@ const BIGINT *bigint_const[CONST_COUNT] = {
 
 
 #if 0
-
-/* TODO return type? */
-static inline void _bigint_buf_seti(BIGINT_BUFFER *dest, size_t size, uintmax_t val) {
-	const size_t 	cap = size / sizeof(*dest);
-	uintmax_t 	accum;
-
-	do {
-
-
-	} while(val > 0);
-}
-#endif
-
-
-#if 0
 BIGINT *bigint_add(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
 	const int digits = bigint_digits(b);
 
@@ -230,12 +215,18 @@ BIGINT_INFO bigint_muli(BIGINT *a, const int b, const size_t size) {
  * 	https://en.wikipedia.org/wiki/Long_division#Algorithm_for_arbitrary_base */
 #if 0
 /* FIXME new usage. Alternatively: rewrite using long division */
-BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor,
-		BIGINT *rem)
-{
+BIGINT_INFO bigint_div(BIGINT *a, const BIGINT *b, BIGINT *rem, size_t size) {
+	BIGINT_INFO info = 0;
+	BIGINT *dividend = malloc(size);
+	BIGINT *divisor = b;
+
+	memcpy(dividend, a, size);
+
+	memset(a, 0, size);
+
 	/* count the number of digits in the dividend (n) and the divisor (m) */
-	const size_t dvnd_digits = bigint_digits(dividend); /* k */
-	const size_t dvsr_digits = bigint_digits(divisor);  /* l */
+	const size_t dvnd_digits = bigint_digits(dividend, size); /* k */
+	const size_t dvsr_digits = bigint_digits(divisor, size);  /* l */
 
 	/* let k be the number of digits in n (dividend)
 	 * let l be the number of digits in m (divisor)
@@ -246,23 +237,20 @@ BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor,
 	 * is n */
 	if(dvnd_digits < dvsr_digits) {
 		if(rem) {
-			bigint_set(rem, dividend);
+			memcpy(rem, dividend, size);
 		}
 
-		bigint_seti(dest, 0);
-		return dest;
+		return info;
 	}
 
-	BIGINT_BUFFER q_buf[BIGINT_CAP(dividend)];
-	BIGINT_BUFFER r_buf[BIGINT_CAP(dividend)];
+	/* We store the quotient in 'a' */
+	BIGINT *q = a;
+	BIGINT *r = malloc(size);
+
+	memset(r, 0, size);
+
 	BIGINT_BUFFER d_buf[BIGINT_CAP(dividend)];
 	BIGINT_BUFFER t_buf[BIGINT_CAP(dividend)];
-
-	/* Quotient */
-	BIGINT q 	= BIGINT_ZERO_INIT(q_buf, sizeof(q_buf));
-
-	/* Remainder */
-	BIGINT r 	= BIGINT_ZERO_INIT(r_buf, sizeof(r_buf));
 
 	/* Intermediate dividend */
 	BIGINT idvnd 	= BIGINT_ZERO_INIT(d_buf, sizeof(d_buf));
@@ -275,9 +263,8 @@ BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor,
 
 	/* Set r to the first dvsr_digits - 1 digits of the dividend */
 	for(size_t i = dvnd_digits, j = dvsr_digits - 1; j > 0; i--, j--) {
-		r.buf[j - 1] = dividend->buf[i - 1];
+		r[j - 1] = dividend[i - 1];
 	}
-
 	/* FIXME: What if l = 0? Should l be allowed to be 0? Can l ever be zero? */
 	assert(dvnd_digits > 0);
 	assert(dvsr_digits > 0);
@@ -430,60 +417,63 @@ BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor,
 		bigint_set(rem, &r);
 	}
 
+	free(dividend);
+	free(r);
+
 	return dest;
 }
 #endif
 
 
 /* Divide 'a' by 'b' and store the result in 'a' and the remainder in 'rem'
- * TODO do we want the remainder? */
+ * TODO do we want the remainder? [Update] YES */
 BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *rem, const size_t size) {
 	if(b == 0) {
 		return BIGINT_DIV;
 	}
 
-	const size_t digits = bigint_digits(a, size);
+	const size_t dvnd_digits = bigint_digits(a, size);
+	const size_t dvsr_digits = bigint_digits((BIGINT *) &b, sizeof(b));
 	BIGINT_INFO info = 0;
 
-	BIGINT *in = malloc(size);
-	memcpy(in, a, size);
+	/* dividend = a */
+	BIGINT *dvnd = malloc(size);
 
-	memset(a, 0, size);
+	const int dvsr = b;
+	int idvnd;
 
+	/* remainder */
 	int r = 0;
 
-	/* TODO for dividing digits at i > 0 we need to multiply the
-	 * remainder by 256, divide by b and carry the result to i - j */
+	memcpy(dvnd, a, size);
+	memset(a, 0, size);
 
-	for(size_t i = 0; i < digits; i++) {
-		for(size_t j = 0; j < sizeof(b); j++) {
-			int x, y;
-			div_t q;
 
-			x = in[i];
-			y = (b >> (j * BIGINT_DIGIT_WIDTH)) & BIGINT_DIGIT_MASK;
-
-			if(y == 0) {
-				continue;
-			}
-
-			if(i < j) {
-				/* TODO what do we do with q.rem? */
-				r += in[i] << (j * BIGINT_DIGIT_WIDTH);
-			} else {
-				/* TODO what do we do with q.rem? */
-				q = div(x, y);
-				info |= bigint_carry(a, q.quot, i - j, size);
-
-				/* i - j - 1 < 0 */
-				if(i < j + 1) {
-					r += q.rem;
-				} else {
-					info |= bigint_carry(a, q.rem, i - j - 1, size);
-				}
-			}
-		}
+	/* THE INITIAL REMAINDER SHOULD BE THE FIRST DVSR_DIGITS - 1 OF THE DIVIDEND */
+	for(size_t i = dvsr_digits - 1, j = dvnd_digits; i > 0; i--, j--) {
+		r |= (dvnd[j - 1]) << ((i - 1) * BIGINT_DIGIT_WIDTH);
 	}
+
+
+	/* INTERMEDIATE DIVIDEND = BASE * REMAINDER + DIGIT OF DIVISOR AT POS p + dvnd_digits - 1 */
+	for(size_t p = dvnd_digits; p >= dvsr_digits; p--) {
+		const size_t i = p - 1;
+
+		/*memset(idvnd, 0, size);*/
+
+		/* Add the remainder to the front of the intermediate dividend*/
+		idvnd = r << BIGINT_DIGIT_WIDTH;
+		idvnd |= dvnd[i];
+
+		const int beta = idvnd / dvsr;
+		assert(beta < BIGINT_BASE);
+
+		r = idvnd - (dvsr * beta);
+
+		bigint_dshl(a, 1, size);
+		a[0] = (BIGINT) beta;
+	}
+
 
 	/* TODO while the remainder is larger or equal to b carry a 1 to position
 	 * 0, aka divide by b and carry the quotient. */
@@ -492,7 +482,7 @@ BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *rem, const size_t size) {
 		*rem = r;
 	}
 
-	free(in);
+	free(dvnd);
 
 	return info;
 }
