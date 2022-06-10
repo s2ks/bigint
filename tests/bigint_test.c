@@ -52,19 +52,24 @@ void test_mul(void) {
 }
 
 int main(void) {
-
-	/* TODO this should be the usage */
 	BIGINT a[64];
 	bigint_set(a, "1e150", sizeof(a));
 
-	/*bigint_print(a, sizeof(a));*/
-	_bigint_dbgprint(a, sizeof(a));
+	bigint_print(a, sizeof(a));
+	/*_bigint_dbgprint(a, sizeof(a));*/
 
 	bigint_set(a, "1000", sizeof(a));
 
+	bigint_print(a, sizeof(a));
+
 	bigint_divi(a, 10, NULL, sizeof(a));
 
-	_bigint_dbgprint(a, sizeof(a));
+	bigint_print(a, sizeof(a));
+
+	/*_bigint_dbgprint(a, sizeof(a));*/
+
+	bigint_set(a, "12298347289347298374983479333333333333472938888888883333333333333333333333333333333333333333333333333", sizeof(a));
+	bigint_print(a, sizeof(a));
 
 
 	/*test_mul();*/
