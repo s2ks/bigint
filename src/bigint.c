@@ -179,25 +179,25 @@ BIGINT_INFO bigint_mul(BIGINT *a, BIGINT *b, const size_t size) {
 	return info;
 }
 
-/* FIXME take a look at bigint_mul and take lessons learned from implementing that,
- * also this is broken */
 BIGINT_INFO bigint_muli(BIGINT *a, const int b, const size_t size) {
 	BIGINT_INFO info = 0;
 	const size_t digits = bigint_digits(a, size);
 
-	for(size_t i = digits; i > 0; i--) {
-		const BIGINT_DIGIT digit = a[i - 1];
-		/* FIXME no need to split this into individual bytes, we can just multiply
-		 * each element in 'a' with the entirety of 'b' */
-		for(size_t j = sizeof(b); j > 0; j--) {
-			const int prod = digit * ((b >> ((j - 1) * BIGINT_DIGIT_WIDTH)) & BIGINT_DIGIT_MASK);
+	for(size_t p = digits; p > 0; p--) {
+		for(size_t q = sizeof(b); q > 0; q--) {
+			int x, y;
 
-			/*printf("%d\n", prod);*/
-			if(prod) {
-				info |= bigint_carry(a, prod, i + j - 2, size);
+			x = a[p - 1];
+			y = (b >> ((q - 1) * BIGINT_DIGIT_WIDTH)) & BIGINT_DIGIT_MASK;
+
+			int prod = x * y;
+
+			if(q == 1) {
+				a[p - 1] = 0;
 			}
+
+			info |= bigint_carry(a, prod, p + q - 2, size);
 		}
-		a[i - 1] -= digit;
 	}
 
 	return info;
