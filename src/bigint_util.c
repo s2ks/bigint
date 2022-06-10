@@ -351,7 +351,42 @@ BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 }
 
 void bigint_print(const BIGINT *a, const size_t size) {
-	
+	/* Each BIGINT DIGIT is at most represented by 3 base 10 digits (255) */
+	const size_t b10digits = bigint_digits(a, size) * 3;
+
+	if(b10digits == 0) {
+		printf("0\n");
+		return;
+	}
+
+	char *buf = malloc(b10digits + 1);
+	BIGINT *n = malloc(size);
+	size_t i = 0;
+
+	memcpy(n, a, size);
+
+	while(bigint_digits(n, size) > 0) {
+		int rem;
+		bigint_divi(n, 10, &rem, size);
+
+		buf[i++] = '0' + rem;
+	}
+	buf[i] = '\0';
+	const size_t len = strlen(buf);
+
+	/* Reverse the string */
+	for(size_t b = 0, t = len - 1; b < t; b++, t--) {
+		const char top = buf[t];
+		const char bot = buf[b];
+
+		buf[b] = top;
+		buf[t] = bot;
+	}
+
+	printf("%s\n", buf);
+
+	free(buf);
+	free(n);
 }
 
 #if 0
