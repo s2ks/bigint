@@ -13,6 +13,7 @@ enum {
 	TEST_ADD,
 	TEST_SUB,
 	TEST_POW,
+	TEST_COMPL
 
 	/* ---- */
 	TEST_COUNT,
@@ -32,6 +33,7 @@ void test_div(void);
 void test_add(void);
 void test_sub(void);
 void test_pow(void);
+void test_compl(void);
 
 static void (*const test[TEST_COUNT])(void) = {
 	[TEST_SET] = test_set,
@@ -40,6 +42,7 @@ static void (*const test[TEST_COUNT])(void) = {
 	[TEST_ADD] = test_add,
 	[TEST_SUB] = test_sub,
 	[TEST_POW] = test_pow,
+	[TEST_COMPL] = test_compl,
 };
 
 void test_set(void) {
@@ -73,6 +76,7 @@ void test_div(void) {}
 void test_add(void) {}
 void test_sub(void) {}
 void test_pow(void) {}
+void test_compl(void) {}
 
 void test_mul(void) {
 	BIGINT a[64] = {0x10, 0xee, 0xab};
@@ -119,6 +123,9 @@ int main(void) {
 	/*_bigint_dbgprint(a, sizeof(a));*/
 
 	bigint_set(a, "12298347289347298374983479333333333333472938888888883333333333333333333333333333333333333333333333333", sizeof(a));
+	bigint_print(a, sizeof(a));
+
+	bigint_complement(a, sizeof(a));
 	bigint_print(a, sizeof(a));
 
 
