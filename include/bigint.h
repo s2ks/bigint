@@ -60,13 +60,13 @@ BIGINT_INFO bigint_addi(BIGINT *const a, const unsigned n, const size_t size);
 
 /* Multiply BIGINT 'a' by BIGINT 'b', the result is
  * stored in 'a'. */
-BIGINT_INFO bigint_mul(BIGINT *, BIGINT *, const size_t);
-BIGINT_INFO bigint_muli(BIGINT *, const int, const size_t);
+BIGINT_INFO bigint_mul(BIGINT *const a, BIGINT *b, const size_t size);
+BIGINT_INFO bigint_muli(BIGINT *const a, const int b, const size_t size);
 
 /* Divide 'dividend' by 'divisor', store the quotient in 'a', and the
  * remainder in 'rem'. 'rem' is optional and can be NULL */
 //BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor, BIGINT *rem);
-BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *rem, const size_t size);
+BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *const rem, const size_t size);
 
 /* Base 10 exponential of exp */
 //BIGINT *bigint_exp10(BIGINT *dest, const int exp);

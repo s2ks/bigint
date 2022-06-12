@@ -171,7 +171,7 @@ BIGINT *bigint_sub(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
  * 	0b11 + 0b11 * 0b11 + 0b11 	= 0b1111
  */
 
-BIGINT_INFO bigint_mul(BIGINT *a, BIGINT *b, const size_t size) {
+BIGINT_INFO bigint_mul(BIGINT *const a, BIGINT *b, const size_t size) {
 	BIGINT_INFO info = 0;
 	int cloned = 0;
 
@@ -221,7 +221,7 @@ BIGINT_INFO bigint_mul(BIGINT *a, BIGINT *b, const size_t size) {
 	return info;
 }
 
-BIGINT_INFO bigint_muli(BIGINT *a, const int b, const size_t size) {
+BIGINT_INFO bigint_muli(BIGINT *const a, const int b, const size_t size) {
 	BIGINT_INFO info = 0;
 	const size_t digits = bigint_digits(a, size);
 
@@ -470,7 +470,7 @@ BIGINT_INFO bigint_div(BIGINT *a, const BIGINT *b, BIGINT *rem, size_t size) {
 
 /* Divide 'a' by 'b' and store the result in 'a' and the remainder in 'rem'
  * TODO do we want the remainder? [Update] YES */
-BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *rem, const size_t size) {
+BIGINT_INFO bigint_divi(BIGINT *const a, const int b, int *const rem, const size_t size) {
 	if(b == 0) {
 		return BIGINT_DIV;
 	}
@@ -535,7 +535,7 @@ BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *rem, const size_t size) {
  * The reason this works:
  * 	https://cp-algorithms.com/algebra/binary-exp.html */
 /* TODO test me */
-BIGINT_INFO bigint_pow(BIGINT *a, int p, const size_t size) {
+BIGINT_INFO bigint_pow(BIGINT *const a, int p, const size_t size) {
 	BIGINT_INFO info = 0;
 
 	BIGINT *res = a;

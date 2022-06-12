@@ -13,7 +13,7 @@ void bigint_printraw(const BIGINT *const a, const size_t size) {
 	fprintf(BIGINT_DEBUG_OUT, "\n");
 }
 
-size_t bigint_digits(const BIGINT *a, const size_t size) {
+size_t bigint_digits(const BIGINT *const a, const size_t size) {
 	if(a == NULL) {
 		return 0;
 	}
@@ -32,8 +32,8 @@ size_t bigint_digits(const BIGINT *a, const size_t size) {
  * Carry the value of 'n' to position 'pos' in BIGINT 'a'. */
 
 /* TODO Optimise this */
-int bigint_carry(BIGINT *a, unsigned carry, size_t pos, const size_t size) {
-	int 	accum;
+int bigint_carry(BIGINT *const a, unsigned carry, size_t pos, const size_t size) {
+	unsigned 	accum;
 	BIGINT_INFO 	info = 0;
 
 	do {
@@ -116,7 +116,7 @@ BIGINT *bigint_itob(BIGINT *dest, int n) {
 
 /* Digit shift left
  * Shift 't' by 'n' BIGINT_DIGITs to the left */
-BIGINT_INFO bigint_dshl(BIGINT *a, const size_t n, const size_t size) {
+BIGINT_INFO bigint_dshl(BIGINT *const a, const size_t n, const size_t size) {
 	const size_t len = bigint_digits(a, size);
 	const size_t cap = size;
 	BIGINT_INFO info = 0;
@@ -283,7 +283,7 @@ BIGINT_INFO bigint_seti(BIGINT *dest, int n) {
 
 /* TODO validate a string representing a number.
  * See regex.h perhaps? */
-int bigint_validate_str(const char *str) {
+int bigint_validate_str(const char *const str) {
 	return 1;
 }
 
@@ -338,7 +338,7 @@ BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 }
 
 /* TODO/FIXME I'm sure there is a better way of doing this --- without having to use allocations */
-void bigint_print(const BIGINT *a, const size_t size) {
+void bigint_print(const BIGINT *const a, const size_t size) {
 	/* Each BIGINT DIGIT is at most represented by 3 base 10 digits (255) */
 	const size_t b10digits = bigint_digits(a, size) * 3;
 
