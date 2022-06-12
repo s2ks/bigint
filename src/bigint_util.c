@@ -353,15 +353,12 @@ void bigint_print(const BIGINT *a, const size_t size) {
 
 	char *buf = malloc(b10digits + 1);
 	BIGINT *n = malloc(size);
-	int isnegative = 0;
 	size_t i = 0;
 
 	memcpy(n, a, size);
 
-	if(BIGINT_ISNEGATIVE(n, size)) {
+	if(BIGINT_ISNEGATIVE(a, size)) {
 		bigint_complement(n, size);
-		isnegative = 1;
-
 	}
 
 	while(bigint_digits(n, size) > 0) {
@@ -382,7 +379,7 @@ void bigint_print(const BIGINT *a, const size_t size) {
 		buf[t] = bot;
 	}
 
-	if(isnegative) {
+	if(BIGINT_ISNEGATIVE(a, size)) {
 		printf("-");
 	}
 
