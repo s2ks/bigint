@@ -35,31 +35,72 @@ const BIGINT *bigint_const[CONST_COUNT] = {
 };
 
 
-#if 0
-BIGINT *bigint_add(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
-	const int digits = bigint_digits(b);
+/* Compute two's complement of 'a' */
+/* NOTE: Be mindful of most negative value */
+BIGINT_INFO bigint_complement(BIGINT *const a, const size_t size) {
+	BIGINT_INFO info = 0;
+	/* TODO for better performance we can convert properly aligned
+	 * arrays to an array of 64 bit integers (or smaller depending on
+	 * the system) so we can invert multiple bytes at once */
 
-	bigint_set(dest, a);
+	/* We find the two's complement of a number
+	 * by inverting all bits and adding one */
 
-	for(int i = 0; i < digits; i++) {
-		bigint_carry(dest, i, b->buf[i]);
+	/* Invert all bits */
+	for(size_t i = 0; i < size; i++) {
+		a[i] = ~(a[i]);
 	}
 
-	return dest;
+	/* Add one */
+	info |= bigint_addi(a, 1, size);
+
+	return info;
 }
 
-/* FIXME what if we add a negative? */
-BIGINT *bigint_addi(BIGINT *dest, const BIGINT *a, const int n) {
-	BIGINT_BUFFER bbuf[BIGINT_SIZETOLEN(sizeof(n))];
-	BIGINT b = BIGINT_ASSIGN(bbuf, sizeof(bbuf));
+BIGINT_INFO bigint_add(BIGINT *const a, const BIGINT *const b, const size_t size) {
+	BIGINT_INFO info = 0;
+	const size_t digits = bigint_digits(b, size);
+	int accum = 0;
 
-	bigint_itob(&b, n);
+	for(size_t p = 0; p < digits; p++) {
+		const int sum = a[p] + b[p] + accum;
 
-	bigint_add(dest, a, &b);
+		a[p] = sum & BIGINT_DIGIT_MASK;
 
-	return dest;
+		accum = sum >> BIGINT_DIGIT_WIDTH;
+	}
+
+	if(accum > 0) {
+		info |= bigint_carry(a, accum, digits, size);
+	}
+
+	return info;
 }
 
+
+BIGINT_INFO bigint_addi(BIGINT *const a, const unsigned n, const size_t size) {
+	BIGINT_INFO info = 0;
+	size_t p = 0;
+	unsigned accum = n;
+
+	while(accum > 0) {
+		if(p >= size) {
+			info |= BIGINT_OVF;
+			break;
+		}
+
+		unsigned sum = (accum & BIGINT_DIGIT_MASK) + a[p];
+		a[p++] = sum & BIGINT_DIGIT_MASK;
+
+		sum >>= BIGINT_DIGIT_WIDTH;
+		accum >>= BIGINT_DIGIT_WIDTH;
+		accum += sum;
+	}
+
+	return info;
+}
+
+#if 0
 /* Subtract b from a */
 /* TODO consider using a different subtraction algorithm */
 BIGINT *bigint_sub(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
@@ -168,6 +209,7 @@ BIGINT_INFO bigint_mul(BIGINT *a, BIGINT *b, const size_t size) {
 				a[p - 1] = 0;
 			}
 
+			/* FIXME we perform n^2 carries, surely we can do better */
 			info |= bigint_carry(a, prod, p + q - 2, size);
 		}
 	}
@@ -196,6 +238,7 @@ BIGINT_INFO bigint_muli(BIGINT *a, const int b, const size_t size) {
 				a[p - 1] = 0;
 			}
 
+			/* FIXME see bigint_mul */
 			info |= bigint_carry(a, prod, p + q - 2, size);
 		}
 	}

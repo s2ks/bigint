@@ -4,23 +4,26 @@
 #include <stdint.h>
 #include <string.h>
 
-/* BIGINT bit flags */
+/* BIGINT_INFO bit flags */
 /* Error */
-#define BIGINT_NAN 	0x1 	/* Not a number 	*/
-#define BIGINT_OVF 	0x2 	/* Arithmetic overflow 	*/
-#define BIGINT_DIV 	0x4 	/* Division by zero 	*/
+#define BIGINT_NAN 	1 << 0 	/* Not a number 	*/
+#define BIGINT_OVF 	1 << 1 	/* Arithmetic overflow 	*/
+#define BIGINT_DIV 	1 << 2	/* Division by zero 	*/
+
+/* Warning/status */
+#define BIGINT_MOSTNEG 	1 << 10 /* Most negative value */
 
 #define BIGINT_DIGIT_MASK 	0xff
 #define BIGINT_DIGIT_WIDTH 	8 	/* = (sizeof(BIGINT_DIGIT) * CHAR_BIT) */
+#define BIGINT_SIGN_BIT 	0x80
 
 typedef uint8_t BIGINT_DIGIT;
 typedef BIGINT_DIGIT BIGINT;
 typedef int BIGINT_INFO;
 
-/* TODO define status codes for BIGIN_INFO */
+/* TODO define BIGINT_WORD, DWORD and QWORD types */
 
 
-#if 1
 //typedef uint8_t 	BIGINT_WORD;
 //typedef BIGINT_WORD 	BIGINT_DIGIT;
 //typedef BIGINT_DIGIT 	BIGINT_BUFFER; [> BIGINT_BUFFER serves as syntactic sugar <]
@@ -30,23 +33,10 @@ typedef int BIGINT_INFO;
 #define BIGINT_DWORD_MASK 	0xffff
 #define BIGINT_DWORD_MASK_HI 	0xff00
 #define BIGINT_DWORD_MASK_LO 	0x00ff
-#define BIGINT_SIGN_BIT 	0x80
 #define BIGINT_BASE 		256
 #define BIGINT_WORD_WIDTH 	8
-#else
-typedef uint32_t BIGINT_DIGIT;
-typedef BIGINT_DIGIT BIGINT_BUFFER;
 
-#define BIGINT_SIGN_BIT 	0x80000000
-#define BIGINT_BASE 		0x100000000ULL
-#define BIGINT_DIGIT_WIDTH 	32
-#endif
-
-#define BIGINT_LENTOSIZE(L) (L * sizeof(BIGINT_DIGIT))
-#define BIGINT_SIZETOLEN(S) (MAX(S / sizeof(BIGINT_DIGIT), 1))
-
-#define BIGINT_ISNEGATIVE(BPTR) ((BPTR)->buf[BIGINT_CAP(BPTR) - 1] & BIGINT_SIGN_BIT)
-#define BIGINT_ISUNSIGNED(BPTR) ((BPTR)->flag & BIGINT_UNSIGNED)
+#define BIGINT_ISNEGATIVE(A, S) !!(A[S - 1] & BIGINT_SIGN_BIT)
 
 /* Set a BIGINT of length 'size' to the value represented by the string 'val' */
 BIGINT_INFO bigint_set(BIGINT *const a, const char *val, const size_t size);
@@ -54,29 +44,31 @@ BIGINT_INFO bigint_set(BIGINT *const a, const char *val, const size_t size);
 
 /* Shift BIGINT 'a' of length 'size', to the left by a whole digit's width 'n' times */
 BIGINT_INFO bigint_dshl(BIGINT *const a, const size_t n, const size_t size);
+/* Shift BIGINT 'a' of length 'size', to the right by a whole digit's width 'n' times */
+BIGINT_INFO bigint_dshr(BIGINT *const a, const size_t n, const size_t size);
 
-
-/* Add BIGINT 'b' to BIGINT 'a', store the result in 'dest' */
-//BIGINT *bigint_add(BIGINT *dest, const BIGINT *a, const BIGINT *b);
-//BIGINT *bigint_addi(BIGINT *dest, const BIGINT *a, int n);
+/* Add BIGINT 'b' to BIGINT 'a', store the result in 'a' */
+BIGINT_INFO bigint_add(BIGINT *const a, const BIGINT *const b, const size_t size);
+BIGINT_INFO bigint_addi(BIGINT *const a, const unsigned n, const size_t size);
 
 /* Subtract 'b' from 'a', store the result in dest */
 //BIGINT *bigint_sub(BIGINT *dest, const BIGINT *a, const BIGINT *b);
 
 /* Multiply BIGINT 'a' by BIGINT 'b', the result is
- * stored in 'dest'. */
+ * stored in 'a'. */
 BIGINT_INFO bigint_mul(BIGINT *, BIGINT *, const size_t);
 BIGINT_INFO bigint_muli(BIGINT *, const int, const size_t);
 
-/* Divide 'dividend' by 'divisor', store the quotient in 'dest', and the
- * remainder in 'rem' */
+/* Divide 'dividend' by 'divisor', store the quotient in 'a', and the
+ * remainder in 'rem'. 'rem' is optional and can be NULL */
 //BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor, BIGINT *rem);
 BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *rem, const size_t size);
 
 /* Base 10 exponential of exp */
 //BIGINT *bigint_exp10(BIGINT *dest, const int exp);
 
-BIGINT_INFO bigint_pow(BIGINT *, int, const size_t);
+/* Raise BIGINT 'a' of size 'size' to the 'p'th power */
+BIGINT_INFO bigint_pow(BIGINT *const a, int p, const size_t size);
 
 /* string to bigint (helper) */
 //int _bigint_stob(BIGINT_BUFFER *buf, size_t size, const char *str);
@@ -88,9 +80,9 @@ BIGINT_INFO bigint_pow(BIGINT *, int, const size_t);
 
 void _bigint_dbgprint(BIGINT *a, const size_t);
 
-void bigint_print(const BIGINT *, const size_t);
+void bigint_print(const BIGINT *const a, const size_t size);
 
 /* Compute two's complement of 'a' and store the result in 'dest' */
-//BIGINT *bigint_complement(BIGINT *dest, const BIGINT *a);
+BIGINT_INFO bigint_complement(BIGINT *const a, const size_t size);
 
 #endif /* end of include guard: BIGINT_H_KEQCIY0A */
