@@ -125,6 +125,13 @@ BIGINT_INFO bigint_dshl(BIGINT *a, const size_t n, const size_t size) {
 	const size_t cap = size;
 	BIGINT_INFO info = 0;
 
+	/* TODO could we shift the digits by simply doing the following?
+	 * 	memcpy(a + n, a, size - n);
+	 * 	memset(a, 0, n)
+	 *
+	 * NOTE: from the man page: the areas of memory must not overlap
+	 * when using memcpy, use memmove instead. */
+
 	for(size_t i = len; i > 0; i--) {
 		/* Carry the current digit to position i + n
 		 *
@@ -163,29 +170,9 @@ BIGINT *digit_dshr(BIGINT *t, size_t n) {
 
 	return t;
 }
+#endif
 
-/* Compute two's complement of 'a' */
-/* NOTE: Be mindful of most negative value */
-BIGINT *bigint_complement(BIGINT *dest, const BIGINT *a) {
-	const size_t cap = BIGINT_CAP(dest);
-
-	bigint_set(dest, a);
-
-	/* We find the two's complement of a number
-	 * by inverting all bits and adding one */
-
-	/* Invert all bits */
-	for(size_t i = 0; i < cap; i++) {
-		dest->buf[i] = ~(dest->buf[i]);
-	}
-
-	/* Add one */
-	bigint_carry(dest, 0, 1);
-	/*bigint_addi(dest, dest, 1);*/
-
-	return dest;
-}
-
+#if 0
 /* Compare a to b
  *
  * a > b -> return 1
@@ -308,6 +295,7 @@ int bigint_validate_str(const char *str) {
  * However the number can be written in scientific notation, e.g. 25e100 for 25 * 10^100 */
 /* TODO support hexadecimal -> use toupper and then isxdigit.
  * if c <= '9' then use c - '0' otherwise use c - 'A' + 10*/
+/* TODO support setting negatives */
 BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 	BIGINT_INFO info = 0;
 
@@ -336,6 +324,9 @@ BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 		/* Raise 10 to the power of what comes after 'e'. The power should be able to be
 		 * converted to a regular integer, this should cover a large enough range of numbers we
 		 * could ever want to use */
+
+		/* TODO is there a way to perform this operation without allocating temporary storage space?
+		 * We just need to multiply by 10 a bunch of times */
 		BIGINT *b = malloc(size);
 		memset(b, 0, size);
 
@@ -350,6 +341,7 @@ BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 	return info;
 }
 
+/* TODO/FIXME I'm sure there is a better way of doing this --- without having to use allocations */
 void bigint_print(const BIGINT *a, const size_t size) {
 	/* Each BIGINT DIGIT is at most represented by 3 base 10 digits (255) */
 	const size_t b10digits = bigint_digits(a, size) * 3;
@@ -361,9 +353,16 @@ void bigint_print(const BIGINT *a, const size_t size) {
 
 	char *buf = malloc(b10digits + 1);
 	BIGINT *n = malloc(size);
+	int isnegative = 0;
 	size_t i = 0;
 
 	memcpy(n, a, size);
+
+	if(BIGINT_ISNEGATIVE(n, size)) {
+		bigint_complement(n, size);
+		isnegative = 1;
+
+	}
 
 	while(bigint_digits(n, size) > 0) {
 		int rem;
@@ -383,10 +382,18 @@ void bigint_print(const BIGINT *a, const size_t size) {
 		buf[t] = bot;
 	}
 
+	if(isnegative) {
+		printf("-");
+	}
+
 	printf("%s\n", buf);
 
 	free(buf);
 	free(n);
+}
+
+size_t bigint_tostr(char *const d, const size_t dsize, const BIGINT *const a, const size_t asize) {
+	
 }
 
 #if 0
