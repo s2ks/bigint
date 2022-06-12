@@ -13,7 +13,7 @@ enum {
 	TEST_ADD,
 	TEST_SUB,
 	TEST_POW,
-	TEST_COMPL
+	TEST_COMPL,
 
 	/* ---- */
 	TEST_COUNT,
