@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifndef BIGINT_DEBUG_OUT
+#define BIGINT_DEBUG_OUT stdout
+#endif
+
 /* BIGINT_INFO bit flags */
 /* Error */
 #define BIGINT_NAN 	1 << 0 	/* Not a number 	*/
@@ -78,9 +82,11 @@ BIGINT_INFO bigint_pow(BIGINT *const a, int p, const size_t size);
  * like (char *dest, size_t dest_size, const BIGINT *a) */
 //size_t bigint_tostr(const BIGINT *a, size_t dest_size, char *dest);
 
-void _bigint_dbgprint(BIGINT *a, const size_t);
-
+/* Print a base 10 string representation of 'a' */
 void bigint_print(const BIGINT *const a, const size_t size);
+
+/* Print the raw bytes of 'a' to BIGINT_DEBUG_OUT (stdout by default) */
+void bigint_printraw(const BIGINT *const a, const size_t size);
 
 /* Compute two's complement of 'a' and store the result in 'dest' */
 BIGINT_INFO bigint_complement(BIGINT *const a, const size_t size);

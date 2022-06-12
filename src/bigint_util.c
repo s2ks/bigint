@@ -3,18 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define __DEBUG_OUT stdout
-
 #include "bigint.h"
 
+void bigint_printraw(const BIGINT *const a, const size_t size) {
 
-void _bigint_dbgprint(BIGINT *a, size_t size) {
-	const int cap = size;
-
-	for(int i = 0; i < cap; i++) {
-		fprintf(__DEBUG_OUT, "%02x ", a[i]);
+	for(size_t i = 0; i < size; i++) {
+		fprintf(BIGINT_DEBUG_OUT, "%02x ", a[i]);
 	}
-	fprintf(__DEBUG_OUT, "\n");
+	fprintf(BIGINT_DEBUG_OUT, "\n");
 }
 
 size_t bigint_digits(const BIGINT *a, const size_t size) {
