@@ -46,6 +46,12 @@ BIGINT_INFO bigint_complement(BIGINT *const a, const size_t size) {
 	/* We find the two's complement of a number
 	 * by inverting all bits and adding one */
 
+	/* TODO if the sign bit is set but all other bits are not set then we are
+	 * dealing with the most negative number, for which the two's complement is identical to the input.
+	 * Set the BIGINT_MOSTNEG flag and return.
+	 * Perhaps a shorthand: if the sign bit is set before computing the two's complement of 'a'
+	 * and the sign bit is set after computing the two's complement of 'a' then we set the BIGINT_MOSTNEG flag.*/
+
 	/* Invert all bits */
 	for(size_t i = 0; i < size; i++) {
 		a[i] = ~(a[i]);
@@ -238,7 +244,7 @@ BIGINT_INFO bigint_muli(BIGINT *const a, const int b, const size_t size) {
 				a[p - 1] = 0;
 			}
 
-			/* FIXME see bigint_mul */
+			/* FIXME see bigint_mul about n^2 carries */
 			info |= bigint_carry(a, prod, p + q - 2, size);
 		}
 	}
@@ -357,7 +363,8 @@ BIGINT_INFO bigint_div(BIGINT *a, const BIGINT *b, BIGINT *rem, size_t size) {
 		 * be smaller than 0 -> 0 <= beta < 256
 		 *
 		 * The intermediate dividend can never have more than one digit
-		 * over the divisor. If the divisor has more digits than the
+		 * over the divisor. Because the remainder cannot be greater than the divisor, and we prepend a digit to
+		 * the intermediate dividend. If the divisor has more digits than the
 		 * intermediate dividend, then beta will equal 0 (beta = 0).
 		 *
 		 * Therefore we only need to have a rough estimate of the ratio
@@ -416,6 +423,7 @@ BIGINT_INFO bigint_div(BIGINT *a, const BIGINT *b, BIGINT *rem, size_t size) {
 		 * divisor, but in that case we can take a shortcut and just set
 		 * beta to zero. */
 
+		/* idvnd has more digits than dvsr */
 		if(ntrunc_idvnd > ntrunc_dvsr) {
 			trunc_dvsr = trunc_dvsr >> (ntrunc_idvnd - ntrunc_dvsr) *
 				(sizeof(BIGINT_BUFFER) * CHAR_BIT);
@@ -466,6 +474,128 @@ BIGINT_INFO bigint_div(BIGINT *a, const BIGINT *b, BIGINT *rem, size_t size) {
 	return dest;
 }
 #endif
+
+/* Divide 'a' by 'b' and store the result in 'a', store the remainder (if not NULL) in 'rem'
+ * 'a' is the dividend, 'b' is the divisor */
+BIGINT_INFO bigint_div(BIGINT *const a, BIGINT *const b, BIGINT *const rem, const size_t size) {
+	BIGINT_INFO info = 0;
+	const size_t dvnd_digits = bigint_digits(a, size);
+	const size_t dvsr_digits = bigint_digits(b, size);
+
+	if(dvnd_digits == 0) {
+		return info;
+	}
+
+	if(dvsr_digits == 0) {
+		info |= BIGINT_DIV;
+		return info;
+	}
+
+	if(dvnd_digits < dvsr_digits) {
+		if(rem) {
+			memcpy(rem, a, size);
+		}
+		memset(a, 0, size);
+		return info;
+	}
+
+	if(a == b) {
+		memset(a, 0, size);
+		a[0] = 1;
+		return info;
+	}
+
+	BIGINT *r = malloc(size); 	/* Remainder storage space */
+	BIGINT *idvnd = malloc(size); 	/* Intermediate dividend */
+	uintmax_t trunc_dvsr = 0; /* The [sizeof(trunc_dvsr)] most significant digits of the divisor ('b') */
+
+	memset(r, 0, size);
+	memset(idvnd, 0, size);
+
+
+	/* fill trunc_dvsr with as many significant digits as will fit */
+	if(dvsr_digits > sizeof(trunc_dvsr)) {
+		memcpy(&trunc_dvsr, b + dvsr_digits - sizeof(trunc_dvsr), sizeof(trunc_dvsr));
+	} else {
+		memcpy(&trunc_dvsr, b, dvsr_digits);
+	}
+
+
+	/* Set r to the first [dvsr_digits - 1] digits of the dividend */
+	for(size_t i = dvsr_digits - 1, j = dvnd_digits; i > 0; i--, j--) {
+		r[i - 1] = b[j - 1];
+	}
+
+
+	for(size_t p = dvnd_digits; p >= dvsr_digits; p--) {
+		const size_t i = p - 1;
+		uintmax_t trunc_idvnd = 0;
+
+		/* Multiply the remainder by 256 and add  */
+		memcpy(idvnd + 1, r, size - 1);
+		idvnd[0] = dvnd[i];
+		/*idvnd[0] = dvnd[i - dvsr_digits + 1];*/
+
+		const size_t idvnd_digits = bigint_digits(idvnd, size);
+
+		if(idvnd_digits > sizeof(trunc_idvnd)) {
+			memcpy(&trunc_idvnd, idvnd + idvnd_digits - sizeof(trunc_idvnd), sizeof(trunc_idvnd));
+		} else {
+			memcpy(&trunc_idvnd, idvnd, idvnd_digits);
+		}
+
+		/* REMAINDER = INTERMEDIATE DIVIDEND - DIVISOR * beta
+		 *
+		 * There exists only one beta so that 0 <= REMAINDER < DIVISOR
+		 *
+		 * INTERMEDIATE DIVIDEND - DIVISOR * beta = 0 <= REMAINDER < DIVISOR
+		 *
+		 * (conjecture)
+		 *
+		 * We have to get the remainder as close to zero as possible
+		 *
+		 * Let REMAINDER = 0
+		 *
+		 * INTERMEDIATE DIVIDEND - DIVISOR * beta = 0 	->
+		 * DIVISOR * beta = INTERMEDIATE DIVIDEND 	->
+		 * beta = INTERMEDIATE DIVIDEND / DIVISOR
+		 *
+		 * Let base = 256
+		 * beta can never be larger than the base and can never
+		 * be smaller than 0 -> 0 <= beta < 256
+		 *
+		 * Therefore we only need to have a rough estimate of the ratio
+		 * between the intermediate dividend and the divisor to figure out
+		 * the value of beta.
+		 *
+		 * THE INTERMEDIATE DIVIDEND CAN NEVER HAVE MORE THAN ONE DIGIT OVER THE DIVISOR.
+		 * This is because the remainder cannot be greater than the divisor, and we prepend a digit to
+		 * the intermediate dividend. If the divisor has more digits than the
+		 * intermediate dividend, then beta will equal 0 (beta = 0). */
+
+		int beta;
+
+		if(dvsr_digits > idvnd_digits) {
+			beta = 0;
+		} else {
+			beta = trunc_idvnd / (trunc_dvsr >> (idvnd_digits > dvsr_digits ? BIGINT_DIGIT_WIDTH : 0));
+		}
+
+		assert(beta < BIGINT_BASE);
+
+		memcpy(r, dvsr, size);
+		bigint_muli(r, beta, size);
+		bigint_sub(idvnd, r, size);
+		memcpy(r, idvnd, size);
+
+		memmove(a + 1, a, size - 1);
+
+		a[0] = (BIGINT) beta;
+	}
+
+	free(r);
+	free(idvnd);
+}
 
 
 /* Divide 'a' by 'b' and store the result in 'a' and the remainder in 'rem'
