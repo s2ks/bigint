@@ -110,7 +110,6 @@ int main(void) {
 	bigint_set(a, "1e150", sizeof(a));
 
 	bigint_print(a, sizeof(a));
-	/*_bigint_dbgprint(a, sizeof(a));*/
 
 	bigint_set(a, "1000", sizeof(a));
 
@@ -120,14 +119,11 @@ int main(void) {
 
 	bigint_print(a, sizeof(a));
 
-	/*_bigint_dbgprint(a, sizeof(a));*/
-
 	bigint_set(a, "12298347289347298374983479333333333333472938888888883333333333333333333333333333333333333333333333333", sizeof(a));
 	bigint_print(a, sizeof(a));
 
 	bigint_complement(a, sizeof(a));
 	bigint_print(a, sizeof(a));
-
 
 	for(int i = 0; i < TEST_COUNT; i++) {
 		test[i]();
