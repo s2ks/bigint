@@ -27,12 +27,6 @@ typedef int BIGINT_INFO;
 
 /* TODO define BIGINT_WORD, DWORD and QWORD types */
 
-
-//typedef uint8_t 	BIGINT_WORD;
-//typedef BIGINT_WORD 	BIGINT_DIGIT;
-//typedef BIGINT_DIGIT 	BIGINT_BUFFER; [> BIGINT_BUFFER serves as syntactic sugar <]
-//typedef uint16_t 	BIGINT_DWORD;
-
 #define BIGINT_WORD_MASK 	0xff
 #define BIGINT_DWORD_MASK 	0xffff
 #define BIGINT_DWORD_MASK_HI 	0xff00
@@ -71,7 +65,7 @@ BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *const rem, const size_t siz
 /* Base 10 exponential of exp */
 //BIGINT *bigint_exp10(BIGINT *dest, const int exp);
 
-/* Raise BIGINT 'a' of size 'size' to the 'p'th power */
+/* Raise BIGINT 'a' of size 'size' to the pth power */
 BIGINT_INFO bigint_pow(BIGINT *const a, int p, const size_t size);
 
 /* string to bigint (helper) */
