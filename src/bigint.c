@@ -6,15 +6,7 @@
 
 #include "bigint.h"
 
-/*#include <stdio.h>*/
-
-/* XXX: document, document, document...
- * Seriously, its better to have too many comments
- * than too little. If someone actually has issues with
- * too many comments then they can easily remove them
- * with a regex. But missing comments can't be conjured
- * out of thin air. So comment, comment, comment. State
- * the obvious a thousand times. */
+#include <stdio.h>
 
 /* TODO int to bigint and bigint to int conversion helpers */
 
@@ -39,6 +31,7 @@ const BIGINT *bigint_const[CONST_COUNT] = {
 /* NOTE: Be mindful of most negative value */
 BIGINT_INFO bigint_complement(BIGINT *const a, const size_t size) {
 	BIGINT_INFO info = 0;
+	int isnegative = 0;
 	/* TODO for better performance we can convert properly aligned
 	 * arrays to an array of 64 bit integers (or smaller depending on
 	 * the system) so we can invert multiple bytes at once */
@@ -46,11 +39,12 @@ BIGINT_INFO bigint_complement(BIGINT *const a, const size_t size) {
 	/* We find the two's complement of a number
 	 * by inverting all bits and adding one */
 
-	/* TODO if the sign bit is set but all other bits are not set then we are
-	 * dealing with the most negative number, for which the two's complement is identical to the input.
-	 * Set the BIGINT_MOSTNEG flag and return.
-	 * Perhaps a shorthand: if the sign bit is set before computing the two's complement of 'a'
-	 * and the sign bit is set after computing the two's complement of 'a' then we set the BIGINT_MOSTNEG flag.*/
+	/* If the sign bit is set before computing the two's complement of 'a' and the
+	 * sign bit is set after computing the two's complement of 'a' then 'a' is the
+	 * most negative number, so we set a flag. */
+	if(BIGINT_ISNEGATIVE(a, size)) {
+		isnegative = 1;
+	}
 
 	/* Invert all bits */
 	for(size_t i = 0; i < size; i++) {
@@ -59,6 +53,10 @@ BIGINT_INFO bigint_complement(BIGINT *const a, const size_t size) {
 
 	/* Add one */
 	info |= bigint_addi(a, 1, size);
+
+	if(BIGINT_ISNEGATIVE(a, size) && isnegative) {
+		info |= BIGINT_MOSTNEG;
+	}
 
 	return info;
 }
@@ -106,38 +104,29 @@ BIGINT_INFO bigint_addi(BIGINT *const a, const unsigned n, const size_t size) {
 	return info;
 }
 
-#if 0
 /* Subtract b from a */
 /* TODO consider using a different subtraction algorithm */
-BIGINT *bigint_sub(BIGINT *dest, const BIGINT *a, const BIGINT *b) {
-	/* We set bcompl_buf equal to the size of dest because
-	 * dest has to 'overflow' correctly for the proper
-	 * value to be represented. */
-	BIGINT_BUFFER bcompl_buf[BIGINT_CAP(dest)];
-	BIGINT bcompl = BIGINT_ZERO_INIT(bcompl_buf, sizeof(bcompl_buf));
+BIGINT_INFO bigint_sub(BIGINT *const a, const BIGINT *const b, const size_t size) {
+	BIGINT_INFO info = 0;
 
-	bigint_set(&bcompl, b);
+	if(a == b) {
+		memset(a, 0, size);
+	}
 
-	/* Convert b to a negative if it's a positive value,
-	 * otherwise convert to a positive if it's a negative
-	 * value. */
+	BIGINT *compl = malloc(size);
 
-	/* FIXME what if b is most negative value?
-	 *
-	 * we still subtract even though we should
-	 * add.
-	 *
-	 * Maybe set a flag? */
+	memcpy(compl, b, size);
 
 	/* Compute two's complement of b */
-	bigint_complement(&bcompl, b);
+	info |= bigint_complement(compl, size);
 
 	/* Perform normal addition */
-	bigint_add(dest, a, &bcompl);
+	info |= bigint_add(a, compl, size);
 
-	return dest;
+	free(compl);
+
+	return info;
 }
-#endif
 
 /* BIGINT multiplication: multiply a by b, and store
  * the result in dest.
@@ -502,15 +491,22 @@ BIGINT_INFO bigint_div(BIGINT *const a, BIGINT *const b, BIGINT *const rem, cons
 	if(a == b) {
 		memset(a, 0, size);
 		a[0] = 1;
+
+		if(rem) {
+			memset(rem, 0, size);
+		}
 		return info;
 	}
 
 	BIGINT *r = malloc(size); 	/* Remainder storage space */
 	BIGINT *idvnd = malloc(size); 	/* Intermediate dividend */
+	BIGINT *dvnd = malloc(size);
 	uintmax_t trunc_dvsr = 0; /* The [sizeof(trunc_dvsr)] most significant digits of the divisor ('b') */
 
 	memset(r, 0, size);
 	memset(idvnd, 0, size);
+	memcpy(dvnd, a, size);
+	memset(a, 0, size);
 
 
 	/* fill trunc_dvsr with as many significant digits as will fit */
@@ -520,12 +516,10 @@ BIGINT_INFO bigint_div(BIGINT *const a, BIGINT *const b, BIGINT *const rem, cons
 		memcpy(&trunc_dvsr, b, dvsr_digits);
 	}
 
-
 	/* Set r to the first [dvsr_digits - 1] digits of the dividend */
 	for(size_t i = dvsr_digits - 1, j = dvnd_digits; i > 0; i--, j--) {
-		r[i - 1] = b[j - 1];
+		r[i - 1] = dvnd[j - 1];
 	}
-
 
 	for(size_t p = dvnd_digits; p >= dvsr_digits; p--) {
 		const size_t i = p - 1;
@@ -533,8 +527,7 @@ BIGINT_INFO bigint_div(BIGINT *const a, BIGINT *const b, BIGINT *const rem, cons
 
 		/* Multiply the remainder by 256 and add  */
 		memcpy(idvnd + 1, r, size - 1);
-		idvnd[0] = dvnd[i];
-		/*idvnd[0] = dvnd[i - dvsr_digits + 1];*/
+		idvnd[0] = dvnd[i - dvsr_digits + 1];
 
 		const size_t idvnd_digits = bigint_digits(idvnd, size);
 
@@ -573,19 +566,26 @@ BIGINT_INFO bigint_div(BIGINT *const a, BIGINT *const b, BIGINT *const rem, cons
 		 * the intermediate dividend. If the divisor has more digits than the
 		 * intermediate dividend, then beta will equal 0 (beta = 0). */
 
+
 		int beta;
 
 		if(dvsr_digits > idvnd_digits) {
 			beta = 0;
+		} else if(idvnd_digits > dvsr_digits && idvnd_digits > sizeof(trunc_dvsr)) {
+			/* only shift if we actually truncated the number */
+			beta = trunc_idvnd / (trunc_dvsr >> BIGINT_DIGIT_WIDTH);
 		} else {
-			beta = trunc_idvnd / (trunc_dvsr >> (idvnd_digits > dvsr_digits ? BIGINT_DIGIT_WIDTH : 0));
+			beta = trunc_idvnd / trunc_dvsr;
 		}
+
+		/*printf("BETA: 0x%x\n", beta);*/
 
 		assert(beta < BIGINT_BASE);
 
-		memcpy(r, dvsr, size);
-		bigint_muli(r, beta, size);
-		bigint_sub(idvnd, r, size);
+		/* TODO test bigint_sub and bigint_muli */
+		memcpy(r, b, size);
+		info |= bigint_muli(r, beta, size);
+		info |= bigint_sub(idvnd, r, size);
 		memcpy(r, idvnd, size);
 
 		memmove(a + 1, a, size - 1);
@@ -593,8 +593,15 @@ BIGINT_INFO bigint_div(BIGINT *const a, BIGINT *const b, BIGINT *const rem, cons
 		a[0] = (BIGINT) beta;
 	}
 
+	if(rem) {
+		memcpy(rem, r, size);
+	}
+
 	free(r);
 	free(idvnd);
+	free(dvnd);
+
+	return info;
 }
 
 
@@ -635,6 +642,8 @@ BIGINT_INFO bigint_divi(BIGINT *const a, const int b, int *const rem, const size
 		/*memset(idvnd, 0, size);*/
 
 		/* Add the remainder to the front of the intermediate dividend*/
+		/* FIXME this appears to be working for now, but it's almost definitely incorrect for e.g. divisors that
+		 * have more than one digit */
 		idvnd = r << BIGINT_DIGIT_WIDTH;
 		idvnd |= dvnd[i];
 

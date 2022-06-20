@@ -34,7 +34,7 @@ typedef int BIGINT_INFO;
 #define BIGINT_BASE 		256
 #define BIGINT_WORD_WIDTH 	8
 
-#define BIGINT_ISNEGATIVE(A, S) !!(A[S - 1] & BIGINT_SIGN_BIT)
+#define BIGINT_ISNEGATIVE(A, SIZE) !!(A[SIZE - 1] & BIGINT_SIGN_BIT)
 
 /* Set a BIGINT of length 'size' to the value represented by the string 'val' */
 BIGINT_INFO bigint_set(BIGINT *const a, const char *val, const size_t size);
@@ -49,8 +49,8 @@ BIGINT_INFO bigint_dshr(BIGINT *const a, const size_t n, const size_t size);
 BIGINT_INFO bigint_add(BIGINT *const a, const BIGINT *const b, const size_t size);
 BIGINT_INFO bigint_addi(BIGINT *const a, const unsigned n, const size_t size);
 
-/* Subtract 'b' from 'a', store the result in dest */
-//BIGINT *bigint_sub(BIGINT *dest, const BIGINT *a, const BIGINT *b);
+/* Subtract 'b' from 'a', store the result in 'a' */
+BIGINT_INFO bigint_sub(BIGINT *const a, const BIGINT *const b, const size_t size);
 
 /* Multiply BIGINT 'a' by BIGINT 'b', the result is
  * stored in 'a'. */
@@ -60,6 +60,7 @@ BIGINT_INFO bigint_muli(BIGINT *const a, const int b, const size_t size);
 /* Divide 'dividend' by 'divisor', store the quotient in 'a', and the
  * remainder in 'rem'. 'rem' is optional and can be NULL */
 //BIGINT *bigint_div(BIGINT *dest, const BIGINT *dividend, const BIGINT *divisor, BIGINT *rem);
+BIGINT_INFO bigint_div(BIGINT *const a, BIGINT *const b, BIGINT *const rem, const size_t size);
 BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *const rem, const size_t size);
 
 /* Base 10 exponential of exp */
