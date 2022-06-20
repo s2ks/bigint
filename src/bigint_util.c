@@ -292,6 +292,7 @@ int bigint_validate_str(const char *const str) {
 /* TODO support hexadecimal -> use toupper and then isxdigit.
  * if c <= '9' then use c - '0' otherwise use c - 'A' + 10*/
 /* TODO support setting negatives */
+/* TODO support decimal places in scientific notation e.g. 4.5e101 = 45e100 */
 BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 	BIGINT_INFO info = 0;
 
