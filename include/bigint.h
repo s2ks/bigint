@@ -79,13 +79,9 @@ BIGINT_INFO bigint_divi(BIGINT *a, const int b, int *const rem, const size_t siz
 /* Raise BIGINT 'a' of size 'size' to the pth power */
 BIGINT_INFO bigint_pow(BIGINT *const a, int p, const size_t size);
 
-/* string to bigint (helper) */
-//int _bigint_stob(BIGINT_BUFFER *buf, size_t size, const char *str);
-
-/* FIXME change the order of these parameters to something sane
- *
- * like (char *dest, size_t dest_size, const BIGINT *a) */
-//size_t bigint_tostr(const BIGINT *a, size_t dest_size, char *dest);
+/* Convert /a/ to a textual base 10 representation and write to /dest/. Note that /dest/ is assumed to have
+ * a size of at least BIGINT_MAXSTRLEN10(size) */
+size_t bigint_tostr(char *const dest, const BIGINT *const a, const size_t size);
 
 /* Print a base 10 string representation of 'a' */
 void bigint_print(const BIGINT *const a, const size_t size);
