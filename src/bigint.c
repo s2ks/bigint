@@ -404,10 +404,8 @@ BIGINT_INFO bigint_divi(BIGINT *const a, const int b, int *const rem, const size
 		const size_t i = p - 1;
 
 		/* Add the remainder to the front of the intermediate dividend*/
-		/* FIXME this appears to be working for now, but it's almost definitely incorrect for e.g. divisors that
-		 * have more than one digit */
 		idvnd = r << BIGINT_DIGIT_WIDTH;
-		idvnd |= dvnd[i];
+		idvnd |= dvnd[i - dvsr_digits + 1];
 
 		const int beta = idvnd / dvsr;
 		assert(beta < BIGINT_BASE);
