@@ -283,59 +283,18 @@ BIGINT_INFO bigint_set(BIGINT *const dest, const char *val, const size_t size) {
 	return info;
 }
 
-/* TODO/FIXME I'm sure there is a better way of doing this --- without having to use allocations */
 void bigint_print(const BIGINT *const a, const size_t size) {
-	/* Each BIGINT DIGIT is at most represented by 3 base 10 digits (255) */
-	const size_t b10digits = bigint_digits(a, size) * 3;
+	char buf[BIGINT_MAXSTRLEN10(size)];
 
-	if(b10digits == 0) {
-		printf("0\n");
-		return;
-	}
-
-	char *buf = malloc(b10digits + 1);
-	BIGINT *n = malloc(size);
-	size_t i = 0;
-
-	memcpy(n, a, size);
-
-	if(BIGINT_ISNEGATIVE(a, size)) {
-		bigint_complement(n, size);
-	}
-
-	while(bigint_digits(n, size) > 0) {
-		int rem;
-		bigint_divi(n, 10, &rem, size);
-
-		buf[i++] = '0' + rem;
-	}
-	buf[i] = '\0';
-	const size_t len = strlen(buf);
-
-	/* Reverse the string */
-	for(size_t b = 0, t = len - 1; b < t; b++, t--) {
-		const char top = buf[t];
-		const char bot = buf[b];
-
-		buf[b] = top;
-		buf[t] = bot;
-	}
-
-	if(BIGINT_ISNEGATIVE(a, size)) {
-		printf("-");
-	}
+	bigint_tostr(buf, a, size);
 
 	printf("%s\n", buf);
-
-	free(buf);
-	free(n);
 }
 
 /* Convert /a/ to a base 10 string representation, returns the number of bytes
  * written to /d/ */
 /* TODO use a larger radix e.g. 1e9 */
 size_t bigint_tostr(char *const d, const BIGINT *const a, const size_t size) {
-	const size_t destsiz = BIGINT_MAXSTRLEN10(size);
 	char *dest = d;
 	size_t w = 0;
 
@@ -369,8 +328,10 @@ size_t bigint_tostr(char *const d, const BIGINT *const a, const size_t size) {
 	*dest = '\0';
 	w++;
 
+	dest = d;
+
 	/* ...So reverse the order of the characters */
-	for(size_t b = 0; t = strlen(dest) - 1; b < t; b++, t--) {
+	for(size_t b = 0, t = strlen(dest) - 1; b < t; b++, t--) {
 		const char top = dest[t];
 		const char bot = dest[b];
 
