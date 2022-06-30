@@ -36,6 +36,16 @@ typedef int BIGINT_INFO;
 
 #define BIGINT_ISNEGATIVE(A, SIZE) !!(A[SIZE - 1] & BIGINT_SIGN_BIT)
 
+/* Maximum length of a base 10 string conversion, including an eventual '-' character and the null terminator */
+/* The number of base 10 digits needed to represent a base 256 number
+ * turns out to trend toward the number of base 256 digits multiplied by log(256)
+ *
+ * log(256) = ~2.4082400798797607421875 */
+#define BIGINT_MAXSTRLEN10(SIZE) ((size_t) (((float) SIZE * 2.4082400798797607421875f) + 1.0f)) + 2
+
+/* Same as BIGINT_MAXSTRLEN10 but for base 16 and including the hexadecimal prefix "0x..." */
+#define BIGINT_MAXSTRLEN16(SIZE) (SIZE * 2) + 4
+
 /* Set a BIGINT of length 'size' to the value represented by the string 'val' */
 BIGINT_INFO bigint_set(BIGINT *const a, const char *val, const size_t size);
 //BIGINT *bigint_seti(BIGINT *dest, int n);

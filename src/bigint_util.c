@@ -208,61 +208,6 @@ int bigint_cmp(const BIGINT *const a, const BIGINT *const b) {
 #endif
 
 #if 0
-/* FIXME what if we set a negative? Make sure it actually does
- * what you think it does */
-BIGINT *bigint_set(BIGINT *dest, const BIGINT *src) {
-
-	/* If src points to the same structure as
-	 * dest then there is nothing to set. */
-	if(dest == src) {
-		return dest;
-	}
-
-	const size_t dest_cap 	= BIGINT_CAP(dest);
-	const size_t src_cap 	= BIGINT_CAP(src);
-	const size_t src_digits	= bigint_digits(src);
-
-	/* It is not impossible for src and dest to share
-	 * the same buffer, we must make sure src is
-	 * never affected. */
-
-	/* FIXME how does this solve anything? */
-	/* FIXME description:
-	 * It is possible src and dest share the same
-	 * buffer, or parts of the same buffer.
-	 * We do not want to memset the destination buffer directly
-	 * because we might lose parts of the source buffer before
-	 * we get to the copying part. */
-	BIGINT_BUFFER store_buf[BIGINT_CAP(dest)];
-
-	/* Set the overflow flag if if the number of
-	 * digits in src exceeds the capacity of dest */
-	if(src_digits > dest_cap) {
-		dest->flag |= BIGINT_OVF;
-	}
-
-	/* If the sign bit is set we may need to sign extend (unless the UNSIGNED
-	 * flag is set) because dest might be larger than src */
-	if(src->buf[src_cap - 1] & BIGINT_SIGN_BIT && (src->flag & BIGINT_UNSIGNED) == 0) {
-		memset(store_buf, 0xff, dest->size);
-	} else {
-		memset(store_buf, 0, dest->size);
-	}
-
-	/* Set all digits of src individually in dest
-	 * as long as i does not exceed the capacity
-	 * of dest */
-	for(size_t i = 0; i < src_digits && i < dest_cap; i++) {
-		store_buf[i] = src->buf[i];
-	}
-
-	memcpy(dest->buf, store_buf, dest->size);
-
-	return dest;
-}
-#endif
-
-#if 0
 BIGINT_INFO bigint_seti(BIGINT *dest, int n) {
 
 	/* Initialise to zero */
@@ -386,8 +331,54 @@ void bigint_print(const BIGINT *const a, const size_t size) {
 	free(n);
 }
 
-size_t bigint_tostr(char *const d, const size_t dsize, const BIGINT *const a, const size_t asize) {
-	
+/* Convert /a/ to a base 10 string representation, returns the number of bytes
+ * written to /d/ */
+/* TODO use a larger radix e.g. 1e9 */
+size_t bigint_tostr(char *const d, const BIGINT *const a, const size_t size) {
+	const size_t destsiz = BIGINT_MAXSTRLEN10(size);
+	char *dest = d;
+	size_t w = 0;
+
+	BIGINT n[size];
+
+	memcpy(n, a, size);
+
+	if(BIGINT_ISNEGATIVE(a, size)) {
+		bigint_complement(n, size);
+	}
+
+
+	/* By taking the remainder of a repeated division of /n/ we get the base 10 digits
+	 * of /n/. As a side effect we write the digits to /dest/ in reverse order... */
+	for(size_t ds = bigint_digits(n, size); ds > 0; ds--) {
+		const size_t i = ds - 1;
+		int rem;
+
+		while(n[i] > 0) {
+			bigint_divi(n, 10, &rem, ds);
+			*(dest++) = '0' + rem;
+			w++;
+		}
+	}
+
+	if(BIGINT_ISNEGATIVE(a, size)) {
+		*(dest++) = '-';
+		w++;
+	}
+
+	*dest = '\0';
+	w++;
+
+	/* ...So reverse the order of the characters */
+	for(size_t b = 0; t = strlen(dest) - 1; b < t; b++, t--) {
+		const char top = dest[t];
+		const char bot = dest[b];
+
+		dest[b] = top;
+		dest[t] = bot;
+	}
+
+	return w;
 }
 
 #if 0
