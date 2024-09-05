@@ -145,18 +145,6 @@ BIGINT_INFO bigint_sub(BIGINT *const a, const BIGINT *const b, const size_t size
  * TODO: Surely we can do better than O(n^2), right? Or at least
  * reduce n? TODO speed up multiplication... Somehow. */
 
-/* XXX 0xff + 0xff == ~(0xff * 0xff) AKA ~(0xff + 0xff) == 0xff * 0xff
- * Uhh, holy shit? Is this how we multiply FAST???
- * Imagine if we could multiply by simply inverting any addition lmao.
- *
- * Does this work for any other numbers?
- * The starting point of this is the realisation that
- * 0xff + 0xff * 0xff + 0xff = 0xffff
- * This works for any base (?)
- * e.g 	99 + 99 * 99 + 99 		= 9999
- * 	0b11 + 0b11 * 0b11 + 0b11 	= 0b1111
- */
-
 BIGINT_INFO bigint_mul(BIGINT *const a, BIGINT *b, const size_t size) {
 	BIGINT_INFO info = 0;
 	int cloned = 0;
