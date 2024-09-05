@@ -1,6 +1,6 @@
-# bigint (**WORK IN PROGRESS**)
+# bigint
 
-A bigint implementation in c (((**SUPER EXPERIMENTAL**)))
+A bigint implementation in c
 
 ---
 
@@ -26,5 +26,17 @@ bigint_add(a, b, sizeof(a));
 
 bigint_mul(a, b, sizeof(a));
 bigint_div(a, b, sizeof(a));
-
 ```
+
+# TODO
+- [ ] Speed up multiplication
+- - [ ] Implement Karatsuba multiplication
+- - [ ] Switch algorithm based on size of operands
+- [ ] Add features to `bigint_set()`
+- - [ ] Support hexadecimal input
+- - [ ] Support negatives
+- - [ ] support decimal places in scientific notation, e.g. `1.5e3`
+- - [ ] Implement `bigint_validate_str()`
+- - [ ] Implement `bigint_set()` without memory allocation
+- - - [ ] Implement a function that can raise 10 to a power of n without allocating
+- [ ] Add Benchmarking support
